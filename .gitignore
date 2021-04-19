@@ -1,6 +1,7 @@
 kitti_format/
 kitti_test/
 __pycache__/
+*.py[cod]
 eggs/
 .eggs/
 build/
