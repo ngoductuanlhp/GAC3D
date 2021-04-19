@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from .image import transform_preds
+from .image import transform_preds, affine_transform
 from .ddd_utils import ddd2locrot
 
 
@@ -112,6 +112,7 @@ def multi_pose_post_process(dets, c, s, h, w):
        pts.reshape(-1, 34)], axis=1).astype(np.float32).tolist()
     ret.append({np.ones(1, dtype=np.int32)[0]: top_preds})
   return ret
+
 def car_pose_post_process(dets, c, s, h, w):
   # dets: batch x max_dets x 40
   # return list of 39 in image coord
@@ -133,3 +134,25 @@ def car_pose_post_process(dets, c, s, h, w):
     #0:4  4:5   5:23 23:32    32:35 35:36 36:39 39:40
     ret.append({np.ones(1, dtype=np.int32)[0]: top_preds})
   return ret
+
+def car_pose_post_process_single(dets, trans_inv):
+  # dets: bmax_dets x 40
+  # return list of 39 in image coord
+  bbox      = dets[:, :4].reshape(-1, 2)
+  for p in range(bbox.shape[0]):
+    bbox[p, 0:2] = affine_transform(bbox[p, 0:2], trans_inv)
+  score_2d  = dets[: 4:5]
+  pts       = dets[:, 5:23]#transform_preds(dets[i, :, 5:23].reshape(-1, 2), c[i], s[i], (w, h))
+  dim       = dets[:, 23:26]
+  rot_y     = dets[:,26:27]
+  position  = dets[:,27:30]
+  score_3d  = dets[:, 30:31]
+  cat       = dets[:, 31:32]
+  top_preds = np.concatenate(
+    [bbox.reshape(-1, 4), dets[:, 4:5],
+      pts, dim, rot_y, position, prob, cat], axis=1).astype(np.float32)
+  return top_preds
+  #bbox score kps kps_score dim rot_y position prob
+  #0:4  4:5   5:23 23:32    32:35 35:36 36:39 39:40
+  # ret.append({np.ones(1, dtype=np.int32)[0]: top_preds})
+  # return ret

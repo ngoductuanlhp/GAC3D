@@ -617,16 +617,27 @@ def gen_position(kps,dim,rot,meta,const,pos_y=None):
     lambd = torch.cat((z2, lambd1, lambd2), dim=2)
     # lambd = torch.cat((z2, z2, z2), dim=2)
 
-    contact_kps = kps[:, :, 18:20].clone()
-    kps = kps[:,:,0:18]
-
     opinv = opinv.unsqueeze(1)
     opinv = opinv.expand(b, c, -1, -1).contiguous().view(-1, 2, 3).float()
+
+    # contact_kps = contact_kps.view(b, c, -1, 2).permute(0, 1, 3, 2)
+    # hom = torch.ones(b, c, 1, 1).cuda()
+    # contact_kps = torch.cat((contact_kps, hom), dim=2).view(-1, 3, 1)
+    # contact_kps = torch.bmm(opinv, contact_kps).view(b, c, 2, 1)
+    # contact_kps = contact_kps.permute(0, 1, 3, 2).contiguous().view(b , c, -1)
+    # contact_kps_y = torch.clamp(contact_kps[:, :, [1]].long(), 190, 500)
+
+    
     kps = kps.view(b, c, -1, 2).permute(0, 1, 3, 2)
-    hom = torch.ones(b, c, 1, 9).cuda()
-    kps = torch.cat((kps, hom), dim=2).view(-1, 3, 9)
-    kps = torch.bmm(opinv, kps).view(b, c, 2, 9)
+    hom = torch.ones(b, c, 1, 10).cuda()
+    kps = torch.cat((kps, hom), dim=2).view(-1, 3, 10)
+    kps = torch.bmm(opinv, kps).view(b, c, 2, 10)
     kps = kps.permute(0, 1, 3, 2).contiguous().view(b, c, -1)  # 16.32,18
+
+    contact_kps = kps[:, :, 18:20]
+    contact_kps_y = torch.clamp(contact_kps[:, :, [1]].long(), 190, 500)
+    kps = kps[:,:,0:18]
+
     si = torch.zeros_like(kps[:, :, 0:1]) + calib[:, 0:1, 0:1]
     alpha_idx = rot[:, :, 1] > rot[:, :, 5]
     alpha_idx = alpha_idx.float()
@@ -655,12 +666,6 @@ def gen_position(kps,dim,rot,meta,const,pos_y=None):
     # alpna_pre=rot_gt
 
     # NOTE contact point
-    contact_kps = contact_kps.view(b, c, -1, 2).permute(0, 1, 3, 2)
-    hom = torch.ones(b, c, 1, 1).cuda()
-    contact_kps = torch.cat((contact_kps, hom), dim=2).view(-1, 3, 1)
-    contact_kps = torch.bmm(opinv, contact_kps).view(b, c, 2, 1)
-    contact_kps = contact_kps.permute(0, 1, 3, 2).contiguous().view(b , c, -1)
-    contact_kps_y = torch.clamp(contact_kps[:, :, [1]].long(), 190, 500)
     z_suggest = torch.gather(ground_plane, 2, contact_kps_y).float()
 
     rot_y = alpna_pre + torch.atan2(kps[:, :, 16:17] - calib[:, 0:1, 2:3], si)
@@ -870,9 +875,9 @@ def car_pose_decode_faster(
 
     batch, cat, height, width = heat.size()
     num_joints = kps.shape[1] // 2
-    heat = _nms(heat)
+    # heat = _nms(heat)
     scores, inds, clses, ys, xs = _topk(heat, K=K)
-    # print(scores)
+
     clses = clses.view(batch, K, 1).float()
     kps = _transpose_and_gather_feat(kps, inds)
 
@@ -906,8 +911,6 @@ def car_pose_decode_faster(
     position,rot_y,kps_inv, dim=gen_position(kps,dim,rot,meta,const,pos_y = pos_y)
     kps = kps[:, :, 0:18]
 
-    
-    #bboxes=kps[:,:,0:4]
     if wh is None:
         bboxes_kp=kps.view(kps.size(0),kps.size(1),9,2)
         box_min,_=torch.min(bboxes_kp,dim=2)
@@ -920,7 +923,7 @@ def car_pose_decode_faster(
                         ys - wh[..., 1:2] / 2,
                         xs + wh[..., 0:1] / 2,
                         ys + wh[..., 1:2] / 2], dim=2)
-    hm_score=kps[:,:,0:9]
-    detections = torch.cat([bboxes, scores, kps_inv,dim,hm_score,rot_y,position,prob,clses], dim=2)
+                        
+    detections = torch.cat([bboxes, scores, kps_inv, dim, rot_y, position, prob, clses], dim=2)
 
     return detections

@@ -9,12 +9,17 @@ Run following command to train model with DLA-34 backbone:
 Run following command for results generation:
    * *Val* set:
    ```bash
-   python3 ./src/faster.py --demo ./kitti_format/data/kitti/val.txt --data_dir ./kitti_format --calib_dir ./kitti_format/data/kitti/calib/ --load_model ./kitti_format/pretrained/2d3d_noaug_lr_trainval_last.pth --gpus 0 --arch dladepthconv_34
+   python3 ./src/faster.py --demo ./kitti_format/data/kitti/val.txt --data_dir ./kitti_format --calib_dir ./kitti_format/data/kitti/calib/ --load_model ./kitti_format/pretrained/2d3d_noaug_lr_trainval_last.pth --gpus 0 --arch dlapac_34
    ```
 
    * *Test* set:
    ```bash
-   python3 ./src/faster.py --demo ./kitti_test/data/kitti/test.txt --data_dir ./kitti_test --calib_dir ./kitti_test/data/kitti/calib/ --load_model ./kitti_format/pretrained/2d3d_noaug_lr_trainval_last.pth --gpus 0 --arch dladepthconv_34
+   python3 ./src/faster.py --demo ./kitti_test/data/kitti/test.txt --data_dir ./kitti_test --calib_dir ./kitti_test/data/kitti/calib/ --load_model ./kitti_format/pretrained/2d3d_noaug_lr_trainval_last.pth --gpus 0 --arch dlapac_34
+   ```
+
+   * Jetson:
+   ```bash
+   python3 ./src/infer_jetson.py --demo ./kitti_format/data/kitti/test_jetson.txt --data_dir ./kitti_format --calib_dir ./kitti_format/data/kitti/calib/ --load_model /home/ml4u/RTM3D_weights/epoch92_2d3d_val_lr_aug.pth --gpus 0 --arch dlapac_34
    ```
 
 ## Evaluation

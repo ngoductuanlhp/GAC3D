@@ -16,9 +16,6 @@ import os
 def gen_ground(P2_prime, h, w, P0 = None):
   baseline = 0.54
   relative_elevation = 1.65
-  # image = torch.from_numpy(image)
-  # P2 = torch.from_numpy(P2)
-  # h, w = image.shape[0], image.shape[1]
   P2 = P2_prime
 
   fy = P2[1:2, 1:2]  # [B, 1, 1]
@@ -30,21 +27,10 @@ def gen_ground(P2_prime, h, w, P0 = None):
   y_range = torch.clamp(y_range, int(cy) + 1)
   _, yy_grid = torch.meshgrid(x_range, y_range)
   yy_grid = torch.transpose(yy_grid, 0, 1)
-  # print(yy_grid, fy, Ty)
-  # disparity = fy * baseline * \
-  #     (yy_grid - cy) / (torch.abs(fy * relative_elevation + Ty) + 1e-10)
-  # disparity = F.relu(disparity)
-
-  # if P0 is not None:
-  #   # Ty = (P2[1:2, 3:4] - P0[1:2, 3:4]) / P2[1:2, 1:2]
-  #   Ty = 0
 
   z = (fy * relative_elevation + Ty) / (yy_grid - cy + 1e-10)
-  # print(z)
-  # print((yy_grid - cy + 1e-10))
   z = torch.clamp(z, 0, 75)
   z = z[:, 0]
-  # print(Ty, fy * relative_elevation + Ty)
   return z
 
 class BaseDetector(object):
@@ -55,7 +41,7 @@ class BaseDetector(object):
       opt.device = torch.device('cpu')
     
     print('Creating model...')
-    self.model = create_model(opt.arch, opt.heads, opt.head_conv)
+    self.model = create_model(opt.arch, opt.heads, opt.head_conv, infer=True)
     self.model = load_model(self.model, opt.load_model)
     self.model = self.model.to(opt.device)
     self.model.eval()
@@ -64,7 +50,6 @@ class BaseDetector(object):
     self.std = np.array(opt.std, dtype=np.float32).reshape(1, 1, 3)
     self.max_per_image = 100
     self.num_classes = opt.num_classes
-    self.scales = opt.test_scales
     self.opt = opt
     self.pause = True
     self.image_path=' '
@@ -209,41 +194,42 @@ class BaseDetector(object):
     load_time += (loaded_time - start_time)
     
     detections = []
-    for scale in self.scales:
-      scale_start_time = time.time()
-      if not pre_processed:
-        images, depths, meta = self.pre_process(image, depth, scale, meta)
-        meta['trans_output_inv']=meta['trans_output_inv'].to(self.opt.device)
-      else:
-        images = pre_processed_images['images'][scale][0]
-        meta = pre_processed_images['meta'][scale]
-        meta = {k: v.numpy()[0] for k, v in meta.items()}
-      meta['calib']=calib
-      meta['ground_plane'] = ground_plane
-      images = images.to(self.opt.device)
-      depths = depths.to(self.opt.device)
-      torch.cuda.synchronize()
-      pre_process_time = time.time()
-      pre_time += pre_process_time - scale_start_time
-      
-      output, dets, forward_time = self.process(images,depths, meta,return_time=True)
 
-      torch.cuda.synchronize()
-      net_time += forward_time - pre_process_time
-      decode_time = time.time()
-      dec_time += decode_time - forward_time
-      
-      if self.opt.debug >= 2:
-        self.debug(debugger, images, dets, output, scale)
-      
-      dets = self.post_process(dets, meta, scale)
-      torch.cuda.synchronize()
-      post_process_time = time.time()
-      post_time += post_process_time - decode_time
-
-      detections.append(dets)
+    scale_start_time = time.time()
+    if not pre_processed:
+      images, depths, meta = self.pre_process(image, depth, scale, meta)
+      # meta['trans_output_inv']=meta['trans_output_inv'].to(self.opt.device)
+    else:
+      images = pre_processed_images['images'][scale][0]
+      meta = pre_processed_images['meta'][scale]
+      meta = {k: v.numpy()[0] for k, v in meta.items()}
+    meta['calib']=calib
+    meta['ground_plane'] = ground_plane
+    images = images.to(self.opt.device)
+    depths = depths.to(self.opt.device)
+    torch.cuda.synchronize()
+    pre_process_time = time.time()
+    pre_time += pre_process_time - scale_start_time
     
-    results = self.merge_outputs(detections)
+    output, dets, forward_time = self.process(images,depths, meta,return_time=True)
+
+    torch.cuda.synchronize()
+    net_time += forward_time - pre_process_time
+    decode_time = time.time()
+    dec_time += decode_time - forward_time
+    
+    if self.opt.debug >= 2:
+      self.debug(debugger, images, dets, output, scale)
+    
+    dets = self.post_process(dets, meta)
+    torch.cuda.synchronize()
+    post_process_time = time.time()
+    post_time += post_process_time - decode_time
+
+    # detections.append(dets)
+    
+    # results = self.merge_outputs(detections)
+    results = dets
     torch.cuda.synchronize()
     end_time = time.time()
     merge_time += end_time - post_process_time

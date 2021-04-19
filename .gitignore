@@ -1,12 +1,13 @@
 kitti_format/
 kitti_test/
 __pycache__/
+*.py[cod]
+
 eggs/
 .eggs/
 build/
 dist/
 *.egg-info/
 *.egg
-*.pyc
 *.o
 *.so
