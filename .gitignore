@@ -5,6 +5,8 @@ eggs/
 .eggs/
 build/
 dist/
+*.egg-info/
+*.egg
 *.pyc
 *.o
 *.so

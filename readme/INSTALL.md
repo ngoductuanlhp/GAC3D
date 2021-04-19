@@ -19,12 +19,14 @@ The project was implemented and tested on Ubuntu 18.04, with [Anaconda](https://
     cd GAC3D/src/lib/models/networks/
     git clone https://github.com/jinfagang/DCNv2_latest
     cd DCNv2
-    sh make.sh
+    sudo rm *.so
+    sudo rm -r build/
+    sudo <vitualenv/bin/python3> setup.py build develop
     ```
 5. Compile iou3d (from [pointRCNN](https://github.com/sshaoshuai/PointRCNN)): 
     ```bash
-    cd GAC3D/src/lib/utiles/iou3d
-    python setup.py install
+    cd GAC3D/src/lib/utils/iou3d
+    python3 setup.py install
     ```
 
 5. Compile nms (optional): 
