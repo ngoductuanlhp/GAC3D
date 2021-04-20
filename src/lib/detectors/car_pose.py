@@ -47,9 +47,9 @@ class CarPoseDetector(BaseDetector):
             # hp_offset = output['hp_offset'] if self.opt.reg_hp_offset else None
 
             dets = car_pose_decode(
-                output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],\
-                        reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const, \
-                        dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle)
+                output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],
+                reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const,
+                dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle, not_joint_task=self.opt.not_joint_task)
 
         if return_time:
             return output, dets, 0
@@ -59,14 +59,14 @@ class CarPoseDetector(BaseDetector):
     def preprocess_depth(self, depth):
         n = 40
         delta = 2 * 80 / (n * (n + 1))
-        depth = 1 + 8 * (depth)/delta
+        depth = 1 + 8 * (depth) / delta
         depth = -0.5 + 0.5 * np.sqrt(depth)  # 0 -> 40
         depth = depth / 40  # 0 -> 1
         return depth
 
     def pre_process(self, image, depth, meta=None):
         height, width = image.shape[0:2]
-        c = np.array([width/2., height/2.], dtype=np.float32)
+        c = np.array([width / 2., height / 2.], dtype=np.float32)
         s = np.array([width, height], dtype=np.float32)
 
         trans_input = get_affine_transform(

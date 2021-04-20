@@ -245,6 +245,8 @@ class Opts(object):
                                  help='calculate position loss as 8 corners losses')
         self.parser.add_argument('--not_depth_guide', action='store_true',
                                  help='')
+        self.parser.add_argument('--not_joint_task', action='store_true',
+                                 help='')
 
     def parse(self, args=''):
         if args == '':
