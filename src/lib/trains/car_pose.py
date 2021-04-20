@@ -46,7 +46,7 @@ class CarPoseLoss(torch.nn.Module):
             dim_loss = self.crit_reg(output['dim'], batch['reg_mask'],batch['ind'], batch['dim'])
         if opt.rot_weight > 0:
             rot_loss = self.crit_rot(
-                output['rot'], batch['rot_mask'], batch['ind'], batch['rotbin'], batch['rotres'])
+                output['rot'], batch['rot_mask'], batch['ind'], batch['rotbin'], batch['rotheading'], batch['rotres'])
         if opt.reg_offset and opt.off_weight > 0:
             off_loss = self.crit_reg(output['reg'], batch['reg_mask'], batch['ind'], batch['reg'])
         # if opt.reg_hp_offset and opt.off_weight > 0:

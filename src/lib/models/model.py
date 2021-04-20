@@ -13,6 +13,8 @@ from .networks.pose_dla_dcn import get_pose_net as get_dla_dcn
 from .networks.resnet_dcn import get_pose_net as get_pose_net_dcn
 from .networks.large_hourglass import get_large_hourglass_net
 from .networks.dla_dcn_pac import get_pose_net as get_dlapac
+from .networks.dla_dcn_pac_noconv import get_pose_net as get_dlapac_noconv
+
 
 
 _model_factory = {
@@ -22,6 +24,7 @@ _model_factory = {
   'resdcn': get_pose_net_dcn,
   'hourglass': get_large_hourglass_net,
   'dlapac': get_dlapac,
+  'dlapacnc': get_dlapac_noconv,
 }
 
 def create_model(arch, heads, head_conv):

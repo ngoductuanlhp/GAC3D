@@ -592,7 +592,7 @@ import numpy as np
 def switch_dim(dimension, rot):
     rot_sin = torch.abs(torch.sin(rot))
     rot_cos = torch.abs(torch.cos(rot))
-    idx = (rot_cos > rot_sin).unsqueeze(2).expand_as(dimension).float()
+    idx = (rot_cos > rot_sin).expand_as(dimension).float()
     dimension_inv = dimension.clone()[:,:,[0,2,1]]
     dim = dimension * (1 -idx) + dimension_inv * idx 
     return dim

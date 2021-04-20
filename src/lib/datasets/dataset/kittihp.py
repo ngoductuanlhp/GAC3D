@@ -10,7 +10,7 @@ import os
 import torch.utils.data as data
 class KITTIHP(data.Dataset):
     num_classes = 3
-    num_joints = 9
+    num_joints = 10
     default_resolution = [384, 1280]
 
     mean = np.array([0.485, 0.456, 0.406], np.float32).reshape(1, 1, 3)
@@ -42,10 +42,13 @@ class KITTIHP(data.Dataset):
             if opt.stereo_aug:
                 data_used = split+'_stereo'
             else:
-                data_used = split
-            self.annot_path = os.path.join(
+                data_used = split 
+                self.annot_path = os.path.join(
                 self.data_dir, 'annotations',
-                'kitti_{}.json').format(data_used)
+                'kitti_trainval_lr.json')
+            # self.annot_path = os.path.join(
+            #     self.data_dir, 'annotations',
+            #     'kitti_{}.json').format(data_used)
         self.max_objs = 32
         self._data_rng = np.random.RandomState(123)
         self._eig_val = np.array([0.2141788, 0.01817699, 0.00341571],

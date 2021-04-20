@@ -158,9 +158,9 @@ class CarPoseDataset(data.Dataset):
         dep = np.zeros((self.max_objs, 1), dtype=np.float32)
         ori = np.zeros((self.max_objs, 1), dtype=np.float32)
 
-        rotbin = np.zeros((self.max_objs, 2), dtype=np.int64)
-        # rotheading = np.zeros((self.max_objs, 1), dtype=np.int64)
-        rotres = np.zeros((self.max_objs, 2), dtype=np.float32)
+        rotbin = np.zeros((self.max_objs, 1), dtype=np.int64)
+        rotheading = np.zeros((self.max_objs, 1), dtype=np.int64)
+        rotres = np.zeros((self.max_objs, 1), dtype=np.float32)
 
         rot_mask = np.zeros((self.max_objs), dtype=np.uint8)
         kps = np.zeros((self.max_objs, num_joints * 2), dtype=np.float32)
@@ -231,16 +231,16 @@ class CarPoseDataset(data.Dataset):
             h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
             if ((h > 0 and w > 0) or (rot != 0)) and not skipped:
                 alpha = self._convert_alpha(alpha1)
-                # alpha_cls, alpha_heading, alpha_offset = self.get_orien(alpha)
-                if alpha < np.pi / 6. or alpha > 5 * np.pi / 6.:
-                    rotbin[k, 0] = 1
-                    rotres[k, 0] = alpha - (-0.5 * np.pi)
-                if alpha > -np.pi / 6. or alpha < -5 * np.pi / 6.:
-                    rotbin[k, 1] = 1
-                    rotres[k, 1] = alpha - (0.5 * np.pi)
-                # rotheading[k] = alpha_heading
-                # rotbin[k] = alpha_cls
-                # rotres[k] = alpha_offset
+                alpha_cls, alpha_heading, alpha_offset = self.get_orien(alpha)
+                # if alpha < np.pi / 6. or alpha > 5 * np.pi / 6.:
+                #     rotbin[k, 0] = 1
+                #     rotres[k, 0] = alpha - (-0.5 * np.pi)
+                # if alpha > -np.pi / 6. or alpha < -5 * np.pi / 6.:
+                #     rotbin[k, 1] = 1
+                #     rotres[k, 1] = alpha - (0.5 * np.pi)
+                rotheading[k] = alpha_heading
+                rotbin[k] = alpha_cls
+                rotres[k] = alpha_offset
 
                 rot_scalar[k] = alpha
                 radius = gaussian_radius((math.ceil(h), math.ceil(w)))
@@ -289,7 +289,7 @@ class CarPoseDataset(data.Dataset):
         
         ret = {'input': inp, 'depth': depth_inp,
                'hm': hm, 'reg_mask': reg_mask, 'ind': ind, 'wh': wh,
-               'hps': kps, 'hps_mask': kps_mask, 'dim': dim, 'rotbin': rotbin, 'rotres': rotres,
+               'hps': kps, 'hps_mask': kps_mask, 'dim': dim, 'rotbin': rotbin, 'rotres': rotres, 'rotheading': rotheading,
                'rot_mask': rot_mask, 'dep': dep, 'rotscalar': rot_scalar, 'calib': calib,
                'opinv': trans_output_inv, 'meta': meta, "label_sel": label_sel, 'location': location, 'ori': ori}
         if self.opt.reg_offset:

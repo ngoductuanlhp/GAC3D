@@ -95,7 +95,7 @@ class Opts(object):
         # train
         self.parser.add_argument('--lr', type=float, default=1.25e-4,
                                  help='learning rate for batch size 32.')
-        self.parser.add_argument('--lr_step', type=str, default='90,120',
+        self.parser.add_argument('--lr_step', type=str, default='90,160',
                                  help='drop learning rate by 10.')
         self.parser.add_argument('--num_epochs', type=int, default=140,
                                  help='total training epochs.')
@@ -296,7 +296,7 @@ class Opts(object):
         opt.exp_dir = os.path.join(data_dir, 'exp')
         opt.save_dir = os.path.join(opt.exp_dir, opt.exp_id)
         opt.debug_dir = os.path.join(opt.save_dir, 'debug')
-        opt.results_dir = os.path.join(opt.exp_dir, 'results_2d3d_noaug_last')
+        opt.results_dir = os.path.join(opt.exp_dir, 'results')
         print('The output will be saved to ', opt.save_dir)
 
         if opt.resume and opt.load_model == '':
@@ -327,7 +327,7 @@ class Opts(object):
         # assert opt.dataset in ['coco_hp']
         opt.flip_idx = dataset.flip_idx
         opt.heads = {'hm': opt.num_classes, 'wh': 2,
-                     'hps': 18, 'rot': 8, 'dim': 3, 'prob': 1}
+                     'hps': 20, 'rot': 8, 'dim': 3, 'prob': 1}
         if opt.reg_offset:
             opt.heads.update({'reg': 2})
         # if opt.hm_hp:
