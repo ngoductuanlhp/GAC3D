@@ -597,15 +597,9 @@ def switch_dim(dimension, rot):
     dim = dimension * (1 -idx) + dimension_inv * idx 
     return dim
 
-def gen_position(kps,dim,rot,meta,const,pos_y=None):
-    b=kps.size(0)
-    c=kps.size(1)
-    opinv=meta['trans_output_inv']
-    calib=meta['calib']
-
-    ground_plane = meta['ground_plane']
-    ground_plane = ground_plane.unsqueeze(0).unsqueeze(0)
-    ground_plane = ground_plane.expand(b, c, -1).contiguous().cuda()
+def gen_position(kps, dim, rot, const, calib, opinv, ground_plane, pos_y=None,dynamic_dim=False,axis_head_angle=False):
+    b = kps.size(0)
+    c = kps.size(1)
 
     pos_y = torch.clamp(pos_y*4, min=170, max=380) - 170
     pos_y = -(pos_y / 210)
@@ -617,36 +611,46 @@ def gen_position(kps,dim,rot,meta,const,pos_y=None):
     lambd = torch.cat((z2, lambd1, lambd2), dim=2)
     # lambd = torch.cat((z2, z2, z2), dim=2)
 
-    contact_kps = kps[:, :, 18:20].clone()
+    kps = kps.view(b, c, -1, 2).permute(0, 1, 3, 2)
+    hom = torch.ones(b, c, 1, 10).cuda()
+    kps = torch.cat((kps, hom), dim=2).view(-1, 3, 10)
+    kps = torch.bmm(opinv, kps).view(b, c, 2, 10)
+    kps = kps.permute(0, 1, 3, 2).contiguous().view(b, c, -1)  # 16.32,20
+
+    # NOTE contact point
+    contact_kps = kps[:, :, 18:20]
     kps = kps[:,:,0:18]
 
-    opinv = opinv.unsqueeze(1)
-    opinv = opinv.expand(b, c, -1, -1).contiguous().view(-1, 2, 3).float()
-    kps = kps.view(b, c, -1, 2).permute(0, 1, 3, 2)
-    hom = torch.ones(b, c, 1, 9).cuda()
-    kps = torch.cat((kps, hom), dim=2).view(-1, 3, 9)
-    kps = torch.bmm(opinv, kps).view(b, c, 2, 9)
-    kps = kps.permute(0, 1, 3, 2).contiguous().view(b, c, -1)  # 16.32,18
+    contact_kps_y = torch.clamp(contact_kps[:, :, [1]].long(), 190, 500)
+    z_suggest = torch.gather(ground_plane, 2, contact_kps_y).float()
+
     si = torch.zeros_like(kps[:, :, 0:1]) + calib[:, 0:1, 0:1]
-    alpha_idx = rot[:, :, 1] > rot[:, :, 5]
-    alpha_idx = alpha_idx.float()
-    alpha1 = torch.atan(rot[:, :, 2] / rot[:, :, 3]) + (-0.5 * np.pi)
-    alpha2 = torch.atan(rot[:, :, 6] / rot[:, :, 7]) + (0.5 * np.pi)
-    alpna_pre = alpha1 * alpha_idx + alpha2 * (1 - alpha_idx)
-    alpna_pre = alpna_pre.unsqueeze(2)
-    # NOTE test new ori
-    # alpha_heading_idx = torch.argmax(rot[:,:,0:2], dim = -1, keepdim = True)
-    # alpha_cls_idx = torch.argmax(rot[:,:,2:4], dim = -1, keepdim = True)
-    # # alpha_offset = rot[:,:,4:]
-    # alpha_offset = torch.atan(rot[:, :, 4:5] / rot[:, :, 5:6])
-    # alpha_absolute_offset = (1-alpha_cls_idx)*(alpha_offset + np.pi/2) + alpha_cls_idx*(alpha_offset)
+    # alpha_idx = rot[:, :, 1] > rot[:, :, 5]
+    # alpha_idx = alpha_idx.float()
+    # alpha1 = torch.atan(rot[:, :, 2] / rot[:, :, 3]) + (-0.5 * np.pi)
+    # alpha2 = torch.atan(rot[:, :, 6] / rot[:, :, 7]) + (0.5 * np.pi)
+    # alpna_pre = alpha1 * alpha_idx + alpha2 * (1 - alpha_idx)
+    if axis_head_angle:
+        alpha_heading_idx = torch.argmax(rot[:,:,0:2], dim = -1, keepdim = True)
+        alpha_cls_idx = torch.argmax(rot[:,:,2:4], dim = -1, keepdim = True)
+        alpha_offset = torch.atan(rot[:, :, 4:5] / rot[:, :, 5:6])
+        alpha_absolute_offset = (1-alpha_cls_idx)*(alpha_offset + np.pi/2) + alpha_cls_idx*(alpha_offset)
 
-    # alpna_pre = (1-alpha_heading_idx)*(alpha_absolute_offset) + alpha_heading_idx*(alpha_absolute_offset - np.pi)
+        alpna_pre = (1-alpha_heading_idx)*(alpha_absolute_offset) + alpha_heading_idx*(alpha_absolute_offset - np.pi)
 
-    # alpna_pre[alpna_pre > np.pi] = alpna_pre[alpna_pre > np.pi] - 2 * np.pi
-    # alpna_pre[alpna_pre < - np.pi] = alpna_pre[alpna_pre < - np.pi] + 2 * np.pi
+        alpna_pre[alpna_pre > np.pi] = alpna_pre[alpna_pre > np.pi] - 2 * np.pi
+        alpna_pre[alpna_pre < - np.pi] = alpna_pre[alpna_pre < - np.pi] + 2 * np.pi
+    else: 
+        alpha_idx = rot[:, :, 1] > rot[:, :, 5]
+        alpha_idx = alpha_idx.float()
+        alpha1 = torch.atan(rot[:, :, 2] / rot[:, :, 3]) + (-0.5 * np.pi)
+        alpha2 = torch.atan(rot[:, :, 6] / rot[:, :, 7]) + (0.5 * np.pi)
+        alpna_pre = alpha1 * alpha_idx + alpha2 * (1 - alpha_idx)
+        alpna_pre = alpna_pre.unsqueeze(2)
 
-    # dim = switch_dim(dim, alpna_pre)
+    # NOTE switch dimension
+    if dynamic_dim:
+        dim = switch_dim(dim, alpna_pre)
 
     # prior, discard in multi-class training
     # dim[:, :, 0] = torch.exp(dim[:, :, 0]) * 1.63
@@ -654,14 +658,6 @@ def gen_position(kps,dim,rot,meta,const,pos_y=None):
     # dim[:, :, 2] = torch.exp(dim[:, :, 2]) * 3.88
     # alpna_pre=rot_gt
 
-    # NOTE contact point
-    contact_kps = contact_kps.view(b, c, -1, 2).permute(0, 1, 3, 2)
-    hom = torch.ones(b, c, 1, 1).cuda()
-    contact_kps = torch.cat((contact_kps, hom), dim=2).view(-1, 3, 1)
-    contact_kps = torch.bmm(opinv, contact_kps).view(b, c, 2, 1)
-    contact_kps = contact_kps.permute(0, 1, 3, 2).contiguous().view(b , c, -1)
-    contact_kps_y = torch.clamp(contact_kps[:, :, [1]].long(), 190, 500)
-    z_suggest = torch.gather(ground_plane, 2, contact_kps_y).float()
 
     rot_y = alpna_pre + torch.atan2(kps[:, :, 16:17] - calib[:, 0:1, 2:3], si)
     rot_y[rot_y > np.pi] = rot_y[rot_y > np.pi] - 2 * np.pi
@@ -762,117 +758,14 @@ def gen_position(kps,dim,rot,meta,const,pos_y=None):
 
     #pinv[:, :, 1] = pinv[:, :, 1] + dim[:, :, 0] / 2
     return pinv,rot_y,kps, dim
-    
+
 def car_pose_decode(
-        heat, wh, kps, dim, rot, prob=None, reg=None, hm_hp=None, hp_offset=None, K=100, meta=None, const=None):
-
-    batch, cat, height, width = heat.size()
-    num_joints = kps.shape[1] // 2
-    # heat = torch.sigmoid(heat)
-    # perform nms on heatmaps
-    # hm_show,_=torch.max(hm_hp,1)
-    # hm_show=hm_show.squeeze(0)
-    # hm_show=hm_show.detach().cpu().numpy().copy()
-    # plt.imshow(hm_show, 'gray')
-    # plt.show()
-
-    heat = _nms(heat)
-    scores, inds, clses, ys, xs = _topk(heat, K=K)
-
-    kps = _transpose_and_gather_feat(kps, inds)
-    kps = kps.view(batch, K, num_joints * 2)
-    kps[..., ::2] += xs.view(batch, K, 1).expand(batch, K, num_joints)
-    kps[..., 1::2] += ys.view(batch, K, 1).expand(batch, K, num_joints)
-    if reg is not None:
-        reg = _transpose_and_gather_feat(reg, inds)
-        reg = reg.view(batch, K, 2)
-        xs = xs.view(batch, K, 1) + reg[:, :, 0:1]
-        ys = ys.view(batch, K, 1) + reg[:, :, 1:2]
-    else:
-        xs = xs.view(batch, K, 1) + 0.5
-        ys = ys.view(batch, K, 1) + 0.5
-    wh = _transpose_and_gather_feat(wh, inds)
-    wh = wh.view(batch, K, 2)
-    clses = clses.view(batch, K, 1).float()
-    scores = scores.view(batch, K, 1)
-
-    bboxes = torch.cat([xs - wh[..., 0:1] / 2,
-                        ys - wh[..., 1:2] / 2,
-                        xs + wh[..., 0:1] / 2,
-                        ys + wh[..., 1:2] / 2], dim=2)
-    dim = _transpose_and_gather_feat(dim, inds)
-    dim = dim.view(batch, K, 3)
-    # dim[:, :, 0] = torch.exp(dim[:, :, 0]) * 1.63
-    # dim[:, :, 1] = torch.exp(dim[:, :, 1]) * 1.53
-    # dim[:, :, 2] = torch.exp(dim[:, :, 2]) * 3.88
-    rot = _transpose_and_gather_feat(rot, inds)
-    rot = rot.view(batch, K, 8)
-    prob = _transpose_and_gather_feat(prob, inds)[:, :, 0]
-    prob = prob.view(batch, K, 1)
-    if hm_hp is not None:
-        hm_hp = _nms(hm_hp)
-        thresh = 0.1
-        kps = kps.view(batch, K, num_joints, 2).permute(
-            0, 2, 1, 3).contiguous()  # b x J x K x 2
-        reg_kps = kps.unsqueeze(3).expand(batch, num_joints, K, K, 2)
-        hm_score, hm_inds, hm_ys, hm_xs = _topk_channel(
-            hm_hp, K=K)  # b x J x K
-        if hp_offset is not None:
-            hp_offset = _transpose_and_gather_feat(
-                hp_offset, hm_inds.view(batch, -1))
-            hp_offset = hp_offset.view(batch, num_joints, K, 2)
-            hm_xs = hm_xs + hp_offset[:, :, :, 0]
-            hm_ys = hm_ys + hp_offset[:, :, :, 1]
-        else:
-            hm_xs = hm_xs + 0.5
-            hm_ys = hm_ys + 0.5
-        mask = (hm_score > thresh).float()
-        hm_score = (1 - mask) * -1 + mask * hm_score
-        hm_ys = (1 - mask) * (-10000) + mask * hm_ys
-        hm_xs = (1 - mask) * (-10000) + mask * hm_xs
-        hm_kps = torch.stack([hm_xs, hm_ys], dim=-1).unsqueeze(
-            2).expand(batch, num_joints, K, K, 2)
-        dist = (((reg_kps - hm_kps) ** 2).sum(dim=4) ** 0.5)
-        min_dist, min_ind = dist.min(dim=3)  # b x J x K
-        hm_score = hm_score.gather(2, min_ind).unsqueeze(-1)  # b x J x K x 1
-        min_dist = min_dist.unsqueeze(-1)
-        min_ind = min_ind.view(batch, num_joints, K, 1, 1).expand(
-            batch, num_joints, K, 1, 2)
-        hm_kps = hm_kps.gather(3, min_ind)
-        hm_kps = hm_kps.view(batch, num_joints, K, 2)
-        l = bboxes[:, :, 0].view(batch, 1, K, 1).expand(
-            batch, num_joints, K, 1)
-        t = bboxes[:, :, 1].view(batch, 1, K, 1).expand(
-            batch, num_joints, K, 1)
-        r = bboxes[:, :, 2].view(batch, 1, K, 1).expand(
-            batch, num_joints, K, 1)
-        b = bboxes[:, :, 3].view(batch, 1, K, 1).expand(
-            batch, num_joints, K, 1)
-        mask = (hm_kps[..., 0:1] < l) + (hm_kps[..., 0:1] > r) + \
-               (hm_kps[..., 1:2] < t) + (hm_kps[..., 1:2] > b) + \
-               (hm_score < thresh) + (min_dist > (torch.max(b - t, r - l) * 0.3))
-        mask = (mask > 0).float().expand(batch, num_joints, K, 2)
-        kps = (1 - mask) * hm_kps + mask * kps
-        kps = kps.permute(0, 2, 1, 3).contiguous().view(
-            batch, K, num_joints * 2)
-        hm_score=hm_score.permute(0, 2, 1, 3).squeeze(3).contiguous()
-    position,rot_y,kps_inv, dim=gen_position(kps,dim,rot,meta,const)
-
-    detections = torch.cat([bboxes, scores, kps_inv,dim,hm_score,rot_y,position,prob,clses], dim=2)
-
-    detections = torch.cat(
-        [bboxes, scores, kps_inv, dim, hm_score, rot_y, position, prob, clses], dim=2)
-
-    return detections
-
-def car_pose_decode_faster(
-        heat, kps, dim, rot, prob, reg =None, wh = None, K=100, meta=None, const=None):
+        heat, kps, dim, rot, prob, reg =None, wh = None, K=100, meta=None, const=None, dynamic_dim=False, axis_head_angle=False):
 
     batch, cat, height, width = heat.size()
     num_joints = kps.shape[1] // 2
     heat = _nms(heat)
     scores, inds, clses, ys, xs = _topk(heat, K=K)
-    # print(scores)
     clses = clses.view(batch, K, 1).float()
     kps = _transpose_and_gather_feat(kps, inds)
 
@@ -893,21 +786,32 @@ def car_pose_decode_faster(
 
     dim = _transpose_and_gather_feat(dim, inds)
     dim = dim.view(batch, K, 3)
-    # dim[:, :, 0] = torch.exp(dim[:, :, 0]) * 1.63
-    # dim[:, :, 1] = torch.exp(dim[:, :, 1]) * 1.53
-    # dim[:, :, 2] = torch.exp(dim[:, :, 2]) * 3.88
+
     rot = _transpose_and_gather_feat(rot, inds)
-    rot = rot.view(batch, K, 8)
-    # rot = rot.view(batch, K, 6)
+    if axis_head_angle:
+        rot = rot.view(batch, K, 6)
+    else:
+        rot = rot.view(batch, K, 8)
+
     prob = _transpose_and_gather_feat(prob, inds)[:, :, 0]
     prob = prob.view(batch, K, 1)
 
+    calib=meta['calib']
+
+    opinv=meta['trans_output_inv']
+    opinv = opinv.unsqueeze(1)
+    opinv = opinv.expand(batch, K, -1, -1).contiguous().view(-1, 2, 3).float()
     
-    position,rot_y,kps_inv, dim=gen_position(kps,dim,rot,meta,const,pos_y = pos_y)
+
+    ground_plane = meta['ground_plane']
+    ground_plane = ground_plane.unsqueeze(1)
+    ground_plane = ground_plane.expand(batch, K, -1).contiguous()
+
+    position,rot_y,kps_inv, dim=gen_position(kps, dim, rot, const, calib, opinv, ground_plane,\
+        pos_y = pos_y,dynamic_dim=dynamic_dim, axis_head_angle=axis_head_angle)
+
     kps = kps[:, :, 0:18]
 
-    
-    #bboxes=kps[:,:,0:4]
     if wh is None:
         bboxes_kp=kps.view(kps.size(0),kps.size(1),9,2)
         box_min,_=torch.min(bboxes_kp,dim=2)
@@ -921,6 +825,13 @@ def car_pose_decode_faster(
                         xs + wh[..., 0:1] / 2,
                         ys + wh[..., 1:2] / 2], dim=2)
     hm_score=kps[:,:,0:9]
-    detections = torch.cat([bboxes, scores, kps_inv,dim,hm_score,rot_y,position,prob,clses], dim=2)
+
+    bboxes = bboxes.view(batch, K, -1, 2).permute(0, 1, 3, 2)
+    hom = torch.ones(batch, K, 1, 2).cuda()
+    bboxes = torch.cat((bboxes, hom), dim=2).view(-1, 3, 2)
+    bboxes = torch.bmm(opinv, bboxes).view(batch, K, 2, 2)
+    bboxes = bboxes.permute(0, 1, 3, 2).contiguous().view(batch, K, -1)
+
+    detections = torch.cat([bboxes, scores, kps_inv, hm_score, dim, rot_y, position, prob, clses], dim=2)
 
     return detections

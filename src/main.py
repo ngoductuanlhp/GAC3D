@@ -8,7 +8,7 @@ import os
 #os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3,4,5,6,7"
 import torch
 import torch.utils.data
-from opts import opts
+from opts import Opts
 from models.model import create_model, load_model, save_model
 from models.data_parallel import DataParallel
 from logger import Logger
@@ -19,6 +19,7 @@ from trains.car_pose import CarPoseTrainer
 def main(opt):
   torch.manual_seed(opt.seed)
   torch.backends.cudnn.benchmark = not opt.not_cuda_benchmark and not opt.test
+  
   Dataset = get_dataset(opt.dataset)
   opt = opts().update_dataset_info_and_set_heads(opt, Dataset)
   print(opt)
@@ -107,5 +108,5 @@ def main(opt):
   logger.close()
 
 if __name__ == '__main__':
-  opt = opts().parse()
+  opt = Opts().parse()
   main(opt)

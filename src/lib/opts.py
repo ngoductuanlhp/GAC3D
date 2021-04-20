@@ -7,7 +7,7 @@ import os
 import sys
 
 
-class opts(object):
+class Opts(object):
     def __init__(self):
         self.parser = argparse.ArgumentParser()
         # basic experiment setting
@@ -330,29 +330,18 @@ class opts(object):
                      'hps': 18, 'rot': 8, 'dim': 3, 'prob': 1}
         if opt.reg_offset:
             opt.heads.update({'reg': 2})
-        if opt.hm_hp:
-            opt.heads.update({'hm_hp': 9})
-        if opt.reg_hp_offset:
-            opt.heads.update({'hp_offset': 2})
-        # print('heads', opt.heads)
+        # if opt.hm_hp:
+        #     opt.heads.update({'hm_hp': 9})
+        # if opt.reg_hp_offset:
+        #     opt.heads.update({'hp_offset': 2})
         return opt
 
     def init(self, args=''):
         default_dataset_info = {
-            'RTM3D': {
+            'GAC3D': {
                 'default_resolution': [384, 1280], 'num_classes': 3,
                 'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225],
-                'dataset': 'kitti_hp', 'num_joints': 8,
-                'flip_idx': [[1, 2], [3, 4], [5, 6], [7, 8]]},
-            'KM3D': {
-                'default_resolution': [384, 1280], 'num_classes': 3,
-                'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225],
-                'dataset': 'kitti_hp', 'num_joints': 8,
-                'flip_idx': [[1, 2], [3, 4], [5, 6], [7, 8]]},
-            'KM3D_nuscenes': {
-                'default_resolution': [896, 1600], 'num_classes': 10,
-                'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225],
-                'dataset': 'nuscenes_hp', 'num_joints': 8,
+                'dataset': 'kitti_hp', 'num_joints': 9,
                 'flip_idx': [[1, 2], [3, 4], [5, 6], [7, 8]]},
         }
 
@@ -361,7 +350,7 @@ class opts(object):
                 for k, v in entries.items():
                     self.__setattr__(k, v)
         opt = self.parse(args)
-        dataset = Struct(default_dataset_info['KM3D'])
+        dataset = Struct(default_dataset_info['GAC3D'])
         opt.dataset = dataset.dataset
         opt = self.update_dataset_info_and_set_heads(opt, dataset)
         return opt

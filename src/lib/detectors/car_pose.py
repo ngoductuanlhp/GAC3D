@@ -33,7 +33,6 @@ class CarPoseDetector(BaseDetector):
 
     def process(self, images, depths, meta, return_time=False):
         with torch.no_grad():
-            torch.cuda.synchronize()
             if self.not_depth_guide or self.backbonea_arch == 'dla':
                 output = self.model(images)[-1]
             else:
@@ -46,47 +45,85 @@ class CarPoseDetector(BaseDetector):
             # reg = output['reg'] if self.opt.reg_offset else None
             # hm_hp = output['hm_hp'] if self.opt.hm_hp else None
             # hp_offset = output['hp_offset'] if self.opt.reg_hp_offset else None
-            torch.cuda.synchronize()
-            forward_time = time.time()
 
-            # scores, inds, clses, ys, xs = _topk(output['hm'], K=100)
-            # print(scores)
-
-            if self.opt.flip_test:
-                output['hm'] = (output['hm'][0:1] +
-                                flip_tensor(output['hm'][1:2])) / 2
-                output['wh'] = (output['wh'][0:1] +
-                                flip_tensor(output['wh'][1:2])) / 2
-                output['hps'] = (output['hps'][0:1] +
-                                 flip_lr_off(output['hps'][1:2], self.flip_idx)) / 2
-                hm_hp = (hm_hp[0:1] + flip_lr(hm_hp[1:2], self.flip_idx)) / 2 \
-                    if hm_hp is not None else None
-                reg = reg[0:1] if reg is not None else None
-                hp_offset = hp_offset[0:1] if hp_offset is not None else None
-            if self.opt.faster == True:
-                dets = car_pose_decode_faster(
-                    output['hm'], output['hps'], output['dim'], output['rot'], output['prob'], reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const)
-            else:
-                dets = car_pose_decode(
-                    output['hm'], output['wh'], output['hps'], output['dim'], output['rot'], prob=output['prob'],
-                    reg=reg, hm_hp=hm_hp, hp_offset=hp_offset, K=self.opt.K, meta=meta, const=self.const)
+            dets = car_pose_decode(
+                output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],\
+                        reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const, \
+                        dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle)
 
         if return_time:
-            return output, dets, forward_time
+            return output, dets, 0
         else:
             return output, dets
 
-    def post_process(self, dets, meta, scale=1):
-        dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])
-        dets = car_pose_post_process(
-            dets.copy(), [meta['c']], [meta['s']],
-            meta['out_height'], meta['out_width'])
-        for j in range(1, 2):  # , self.num_classes + 1):
-            dets[0][j] = np.array(dets[0][j], dtype=np.float32).reshape(-1, 41)
-            # import pdb; pdb.set_trace()
-            dets[0][j][:, :4] /= scale
-            dets[0][j][:, 5:23] /= scale
-        return dets[0]
+    def preprocess_depth(self, depth):
+        n = 40
+        delta = 2 * 80 / (n * (n + 1))
+        depth = 1 + 8 * (depth)/delta
+        depth = -0.5 + 0.5 * np.sqrt(depth)  # 0 -> 40
+        depth = depth / 40  # 0 -> 1
+        return depth
+
+    def pre_process(self, image, depth, meta=None):
+        height, width = image.shape[0:2]
+        c = np.array([width/2., height/2.], dtype=np.float32)
+        s = np.array([width, height], dtype=np.float32)
+
+        trans_input = get_affine_transform(
+            c, s, 0, [self.opt.input_w, self.opt.input_h])
+        inp_image = cv2.warpAffine(
+            image, trans_input, (self.opt.input_w, self.opt.input_h), flags=cv2.INTER_LINEAR)
+
+        inp_image = (inp_image / 255).astype(np.float32)
+        inp_image = (inp_image - self.mean) / self.std
+
+        images = inp_image.transpose(2, 0, 1).reshape(
+            1, 3, self.opt.input_h, self.opt.input_w)
+        images = torch.from_numpy(images)
+
+        # FIXME test depth
+        # print(resized_depth.shape)
+        # dummy_depth = np.random.randint(0, 10000, size = (new_height, new_width)).astype(np.uint16)
+        # resized_depth = dummy_depth
+        # print(resized_depth)
+        # dummy_depth = np.ones_like(resized_depth) * 10 * 256
+        # s = resized_depth.shape
+        # resized_depth = np.random.randn(new_width, new_height, 1)
+        # resized_depth = dummy_depth
+
+        # resized_depth = np.arange(new_width * new_height).reshape(new_height,new_width)
+        # resized_depth = np.clip(resized_depth, 0, 255 * 100)
+        # print(resized_depth.shape)
+        # resized_depth = cv2.resize(depth, (new_width, new_height))
+        inp_depth = cv2.warpAffine(
+            depth, trans_input, (self.opt.input_w, self.opt.input_h),
+            flags=cv2.INTER_LINEAR)
+
+        inp_depth = inp_depth.astype(np.float32) / 256.0
+        # NOTE test new depth preproc
+        # inp_depth = self.preprocess_depth(inp_depth)
+        inp_depth = inp_depth[:, :, np.newaxis]
+        inp_depth = (inp_depth - self.depth_mean) / self.depth_std
+        # print(np.max(inp_depth), np.min(inp_depth))
+        # inp_depth = inp_depth * 10000
+        depths = inp_depth.transpose(2, 0, 1).reshape(
+            1, 1, self.opt.input_h, self.opt.input_w)
+        depths = torch.from_numpy(depths)
+
+        meta = {'c': c, 's': s,
+                'out_height': self.opt.input_h // self.opt.down_ratio,
+                'out_width': self.opt.input_w // self.opt.down_ratio}
+
+        trans_output_inv = get_affine_transform(
+            c, s, 0, [meta['out_width'], meta['out_height']], inv=1)
+        trans_output_inv = torch.from_numpy(
+            trans_output_inv).unsqueeze(0).to(self.opt.device)
+        meta['trans_output_inv'] = trans_output_inv
+        return images, depths, meta
+
+    def post_process(self, dets, meta):
+        dets = dets.squeeze(0).detach().cpu().numpy()  # for batch size 1
+        return dets
 
     def merge_outputs(self, detections):
         results = {}
@@ -113,15 +150,13 @@ class CarPoseDetector(BaseDetector):
 
     def show_results(self, debugger, image, results, calib):
         debugger.add_img(image, img_id='car_pose')
-        for bbox in results[1]:
+        for bbox in results:
             if bbox[4] > self.opt.vis_thresh:
-                debugger.add_coco_bbox(
-                    bbox[:4], bbox[40], bbox[4], img_id='car_pose')
-                debugger.add_kitti_hp(bbox[5:23], img_id='car_pose')
-                debugger.add_bev(bbox, img_id='car_pose',
-                                 is_faster=self.opt.faster)
-                debugger.add_3d_detection(bbox, calib, img_id='car_pose')
+                # debugger.add_coco_bbox(bbox[:4], bbox[40], bbox[4], img_id='car_pose')
+                # debugger.add_kitti_hp(bbox[5:23], img_id='car_pose')
+                # debugger.add_bev(bbox, img_id='car_pose',is_faster=self.opt.faster)
+                # debugger.add_3d_detection(bbox, calib, img_id='car_pose')
                 debugger.save_kitti_format(
-                    bbox, self.image_path, self.opt, img_id='car_pose', is_faster=self.opt.faster)
+                    bbox, self.image_path, self.opt, img_id='car_pose')
         if self.opt.vis:
             debugger.show_all_imgs(pause=self.pause)
