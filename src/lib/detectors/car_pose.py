@@ -14,7 +14,7 @@ except:
     print('NMS not imported! If you need it,'
           ' do \n cd $CenterNet_ROOT/src/lib/external \n make')
 from models.decode import multi_pose_decode, _topk
-from models.decode import car_pose_decode, car_pose_decode_faster
+from models.decode import car_pose_decode
 from models.utils import flip_tensor, flip_lr_off, flip_lr
 from utils.image import get_affine_transform
 from utils.post_process import multi_pose_post_process
@@ -28,15 +28,10 @@ class CarPoseDetector(BaseDetector):
     def __init__(self, opt):
         super(CarPoseDetector, self).__init__(opt)
         self.flip_idx = opt.flip_idx
-        self.not_depth_guide = opt.not_depth_guide
-        self.backbonea_arch = opt.arch.split('_')[0]
 
     def process(self, images, depths, meta, return_time=False):
         with torch.no_grad():
-            if self.not_depth_guide or self.backbonea_arch == 'dla':
-                output = self.model(images)[-1]
-            else:
-                output = self.model(images, depths)[-1]
+            output = self.model(images, depths)[-1]
             # output = self.model(images)[-1]
             output['hm'] = output['hm'].sigmoid_()
             # if self.opt.hm_hp and not self.opt.mse_loss:
@@ -47,9 +42,9 @@ class CarPoseDetector(BaseDetector):
             # hp_offset = output['hp_offset'] if self.opt.reg_hp_offset else None
 
             dets = car_pose_decode(
-                output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],
-                reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const,
-                dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle, not_joint_task=self.opt.not_joint_task)
+                output['hm'], output['hps'], output['dim'], output['rot'],
+                reg=None, wh=None, K=self.opt.K, meta=meta, const=self.const,
+                dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle)
 
         if return_time:
             return output, dets, 0

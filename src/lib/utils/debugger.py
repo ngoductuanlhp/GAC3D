@@ -212,13 +212,13 @@ class Debugger(object):
             self.imgs[img_id], (rect1[0], rect1[1]), (rect2[0], rect2[1]), c, 2)
         if conf < 1:
             cv2.circle(self.imgs[img_id], (rect1[0],
-                       rect1[1]), int(10 * conf), c, 1)
+                                           rect1[1]), int(10 * conf), c, 1)
             cv2.circle(self.imgs[img_id], (rect2[0],
-                       rect2[1]), int(10 * conf), c, 1)
+                                           rect2[1]), int(10 * conf), c, 1)
             cv2.circle(self.imgs[img_id], (rect1[0],
-                       rect2[1]), int(10 * conf), c, 1)
+                                           rect2[1]), int(10 * conf), c, 1)
             cv2.circle(self.imgs[img_id], (rect2[0],
-                       rect1[1]), int(10 * conf), c, 1)
+                                           rect1[1]), int(10 * conf), c, 1)
 
     def add_coco_bbox(self, bbox, cat, conf=1, show_txt=True, img_id='default'):
         bbox = np.array(bbox, dtype=np.int32)
@@ -280,12 +280,13 @@ class Debugger(object):
         file_number = img_path.split('.')[-2][-6:]
         box = results[:4]
 
-        score = results[4]*(1/(1+math.exp(-results[39])))
+        # score = results[4] * (1 / (1 + math.exp(-results[39])))
+        score = results[4]
 
         dim = results[32:35]
         pos = results[36:39]
         ori = results[35]
-        cat = results[40]
+        cat = results[39]
         det_cats = ['Car', 'Pedestrian', 'Cyclist']
 
         if dim[0] <= 0 or dim[1] <= 0 or dim[2] <= 0 or pos[2] >= 55 or pos[2] <= 0:
@@ -305,7 +306,7 @@ class Debugger(object):
         l = dim[2]
         h = dim[0]
         w = dim[1]
-        Py = Py+h/2
+        Py = Py + h / 2
         pi = np.pi
         if ori > 2 * pi:
             while ori > 2 * pi:
@@ -430,7 +431,7 @@ class Debugger(object):
         b = hs.shape[0] - 1
         while hs[b] == 0 and b > 0:
             b -= 1
-        self.imgs[img_id] = self.imgs[img_id][t:b+1, l:r+1].copy()
+        self.imgs[img_id] = self.imgs[img_id][t:b + 1, l:r + 1].copy()
 
     def project_3d_to_bird(self, pt):
         pt[0] += self.world_size / 2
@@ -476,7 +477,7 @@ class Debugger(object):
                         self.add_coco_bbox(
                             bbox, dets[i, -1], dets[i, 2], img_id=img_id)
 
-    def add_3d_detection(self, results, calib, img_id='default',  show_txt=False):
+    def add_3d_detection(self, results, calib, img_id='default', show_txt=False):
 
         dim = results[32:35]
         pos = results[36:39]

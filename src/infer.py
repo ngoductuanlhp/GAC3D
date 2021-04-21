@@ -11,30 +11,34 @@ from opts import Opts
 import shutil
 
 # time_stats = ['net', 'dec']
+
+
 def main(opt):
     os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpus_str
     opt.debug = max(opt.debug, 1)
-    # opt.heads = {'hm': 1, 'hps': 20, 'rot': 8, 'dim': 3, 'prob': 1}
-    opt.heads = {'hm': 1, 'hps': 20, 'rot': 8, 'dim': 3, 'prob': 1, 'reg': 2, 'wh': 2}
+    opt.heads = {'hm': 1, 'hps': 20, 'rot': 8, 'dim': 3}
+    # opt.heads = {'hm': 1, 'hps': 20, 'rot': 8, 'dim': 3, 'prob': 1, 'reg': 2, 'wh': 2}
     # opt.hm_hp=False
     # opt.reg_offset=False
     # opt.reg_hp_offset=False
     detector = CarPoseDetector(opt)
     if os.path.exists(opt.results_dir):
-        shutil.rmtree(opt.results_dir,True)
+        shutil.rmtree(opt.results_dir, True)
 
     with open(opt.demo, 'r') as f:
         lines = f.readlines()
-    image_names = [os.path.join(opt.data_dir + '/kitti/image/', img[:6] + '.png') for img in lines]
-    depth_names = [os.path.join(opt.data_dir + '/kitti/depth_adabin/', img[:6] + '.png') for img in lines]
+    image_names = [os.path.join(
+        opt.data_dir + '/kitti/image/', img[:6] + '.png') for img in lines]
+    depth_names = [os.path.join(
+        opt.data_dir + '/kitti/depth_adabin/', img[:6] + '.png') for img in lines]
 
-    time_tol=0
-    num=0
+    time_tol = 0
+    num = 0
 
     for i in tqdm(range(0, len(image_names))):
         image_name = image_names[i]
         depth_name = depth_names[i]
-        num+=1
+        num += 1
         ret = detector.run(image_name, depth_name)
         # time_str = ''
         # for stat in time_stats:
@@ -51,6 +55,7 @@ def main(opt):
             print('NOT EXIST', pred_filename)
             with open(pred_filename, 'a') as fp:
                 pass
+
 
 if __name__ == '__main__':
     opt = Opts().init()

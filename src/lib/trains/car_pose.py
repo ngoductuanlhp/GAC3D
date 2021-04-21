@@ -41,14 +41,17 @@ class CarPoseLoss(torch.nn.Module):
         hp_loss = self.crit_kp(
             output['hps'], batch['hps_mask'], batch['ind'], batch['hps'], batch['dep'])
         if opt.wh_weight > 0:
-            wh_loss = self.crit_reg(output['wh'], batch['reg_mask'],batch['ind'], batch['wh'])
+            wh_loss = self.crit_reg(
+                output['wh'], batch['reg_mask'], batch['ind'], batch['wh'])
         if opt.dim_weight > 0:
-            dim_loss = self.crit_reg(output['dim'], batch['reg_mask'],batch['ind'], batch['dim'])
+            dim_loss = self.crit_reg(
+                output['dim'], batch['reg_mask'], batch['ind'], batch['dim'])
         if opt.rot_weight > 0:
-            rot_loss = self.crit_rot(
-                output['rot'], batch['rot_mask'], batch['ind'], batch['rotbin'], batch['rotres'])
+            rot_loss, heading_loss, axis_loss, offset_loss = self.crit_rot(
+                output['rot'], batch['rot_mask'], batch['ind'], batch['rotheading'], batch['rotbin'], batch['rotres'])
         if opt.reg_offset and opt.off_weight > 0:
-            off_loss = self.crit_reg(output['reg'], batch['reg_mask'], batch['ind'], batch['reg'])
+            off_loss = self.crit_reg(
+                output['reg'], batch['reg_mask'], batch['ind'], batch['reg'])
         # if opt.reg_hp_offset and opt.off_weight > 0:
         #     hp_offset_loss = self.crit_reg(output['hp_offset'], batch['hp_mask'], batch['hp_ind'], batch['hp_offset'])
         # if opt.hm_hp and opt.hm_hp_weight > 0:
@@ -58,7 +61,7 @@ class CarPoseLoss(torch.nn.Module):
         loss_stats = {'loss': box_score, 'hm_loss': hm_loss, 'hp_loss': hp_loss,
                       'dim_loss': dim_loss,
                       'off_loss': off_loss, 'wh_loss': wh_loss,
-                      'rot_loss': rot_loss, 'prob_loss': prob_loss, 'box_score': box_score, 'coor_loss': coor_loss, 
+                      'rot_loss': rot_loss, 'prob_loss': prob_loss, 'box_score': box_score, 'coor_loss': coor_loss,
                       'alpha_diff': alpha_diff}
 
         return loss_stats, loss_stats

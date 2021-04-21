@@ -445,23 +445,6 @@ class DLASeg(nn.Module):
 
         self.ida_up = IDAUp(out_channel, channels[self.first_level:self.last_level],
                             [2 ** i for i in range(self.last_level - self.first_level)])
-        self.depth_net = nn.Sequential(
-          nn.Conv2d(1, 16,
-            kernel_size=3, stride=1,
-            padding=1, bias=True),
-          nn.ReLU(inplace=True),
-          nn.Conv2d(16, 32,
-            kernel_size=3, stride=1,
-            padding=1, bias=True),
-          nn.ReLU(inplace=True),
-          nn.Conv2d(32, 64,
-            kernel_size=3, stride=1,
-            padding=1, bias=True),
-          nn.ReLU(inplace=True),
-          nn.Conv2d(64, 1,
-            kernel_size=1, stride=1,
-            padding=0, bias=True)
-        )
 
         self.heads = heads
         for head in self.heads:
@@ -502,12 +485,11 @@ class DLASeg(nn.Module):
 
         # depthnet
         z = {}
-        depth_scaled = F.interpolate(depth, scale_factor= 1 / 4, mode='nearest')
-        inp_depth = self.depth_net(depth_scaled)
+        depth_scaled = F.interpolate(depth, scale_factor=1 / 4, mode='nearest')
 
         # depth adaptive head
         for head in self.heads:
-            inp = {'x':y[-1], 'depth': inp_depth}
+            inp = {'x': y[-1], 'depth': depth_scaled}
             z[head] = self.__getattr__(head)(inp)
         return [z]
 

@@ -767,7 +767,7 @@ def gen_position(kps, dim, rot, const, calib, opinv, ground_plane, pos_y=None, d
 
 
 def car_pose_decode(
-        heat, kps, dim, rot, prob, reg=None, wh=None, K=100, meta=None, const=None, dynamic_dim=False, axis_head_angle=False, not_joint_task=False):
+        heat, kps, dim, rot, reg=None, wh=None, K=100, meta=None, const=None, dynamic_dim=False, axis_head_angle=False):
 
     batch, cat, height, width = heat.size()
     num_joints = kps.shape[1] // 2
@@ -799,9 +799,6 @@ def car_pose_decode(
     else:
         rot = rot.view(batch, K, 8)
 
-    prob = _transpose_and_gather_feat(prob, inds)[:, :, 0]
-    prob = prob.view(batch, K, 1)
-
     calib = meta['calib']
 
     opinv = meta['trans_output_inv']
@@ -817,7 +814,7 @@ def car_pose_decode(
 
     kps = kps[:, :, 0:18]
 
-    if wh is None or not_joint_task:
+    if wh is None:
         bboxes_kp = kps.view(kps.size(0), kps.size(1), 9, 2)
         box_min, _ = torch.min(bboxes_kp, dim=2)
         box_max, _ = torch.max(bboxes_kp, dim=2)
@@ -838,6 +835,6 @@ def car_pose_decode(
     bboxes = bboxes.permute(0, 1, 3, 2).contiguous().view(batch, K, -1)
 
     detections = torch.cat(
-        [bboxes, scores, kps_inv, hm_score, dim, rot_y, position, prob, clses], dim=2)
+        [bboxes, scores, kps_inv, hm_score, dim, rot_y, position, clses], dim=2)
 
     return detections

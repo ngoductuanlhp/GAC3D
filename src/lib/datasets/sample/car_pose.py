@@ -15,8 +15,6 @@ from utils.image import draw_dense_reg
 import math
 
 
-
-
 class CarPoseDataset(data.Dataset):
     def _coco_box_to_bbox(self, box):
         bbox = np.array([box[0], box[1], box[0] + box[2], box[1] + box[3]],
@@ -40,40 +38,69 @@ class CarPoseDataset(data.Dataset):
                 calib = calib.reshape(3, 4)
                 return calib
 
+    def get_orien(self, orien):
+        heading = 0
+        cls = 0
+        offset = 0
+
+        if abs(np.cos(orien)) > abs(np.sin(orien)):
+            cls = 1
+        else:
+            cls = 0
+        if cls == 0:
+            if orien < 0:
+                orien += np.pi
+                heading = 1
+            else:
+                heading = 0
+                orien = orien
+            offset = orien - np.pi / 2
+        else:
+            if orien > np.pi / 2:
+                heading = 1
+                orien -= np.pi
+            elif orien < -np.pi / 2:
+                heading = 1
+                orien += np.pi
+            else:
+                heading = 0
+            offset = orien
+        return cls, heading, offset
+
     def preprocess_depth(self, depth):
         n = 40
-        delta = 2 * 80 / (n * ( n + 1))
-        depth = 1 + 8 * (depth)/delta
-        depth = -0.5 + 0.5 * np.sqrt(depth) # 0 -> 40
-        depth = depth / 40 # 0 -> 1
+        delta = 2 * 80 / (n * (n + 1))
+        depth = 1 + 8 * (depth) / delta
+        depth = -0.5 + 0.5 * np.sqrt(depth)  # 0 -> 40
+        depth = depth / 40  # 0 -> 1
         return depth
 
     def get_orien(self, orien):
         heading = 0
         cls = 0
         offset = 0
-        
+
         if abs(np.cos(orien)) > abs(np.sin(orien)):
-            cls= 1
+            cls = 1
         else:
-            cls= 0
+            cls = 0
         if cls == 0:
             if orien < 0:
-              orien += np.pi
-              heading= 1
+                orien += np.pi
+                heading = 1
             else:
-              heading= 0
-              orien = orien
+                heading = 0
+                orien = orien
             offset = orien - np.pi / 2
         else:
             if orien > np.pi / 2:
-                heading= 1
+                heading = 1
                 orien -= np.pi
-            elif orien < -np.pi/2:
+            elif orien < -np.pi / 2:
                 heading = 1
                 orien += np.pi
             else:
-                heading = 0 
+                heading = 0
             offset = orien
         return cls, heading, offset
 
@@ -112,15 +139,16 @@ class CarPoseDataset(data.Dataset):
             else:
                 sf = self.opt.scale
                 cf = self.opt.shift
-                c[0] += img.shape[1] * np.clip(np.random.randn() * cf, -2 * cf, 2 * cf)
-                c[1] += img.shape[0] * np.clip(np.random.randn() * cf, -2 * cf, 2 * cf)
+                c[0] += img.shape[1] * \
+                    np.clip(np.random.randn() * cf, -2 * cf, 2 * cf)
+                c[1] += img.shape[0] * \
+                    np.clip(np.random.randn() * cf, -2 * cf, 2 * cf)
                 s = s * np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
             if np.random.random() < self.opt.flip:
                 flipped = True
                 img = img[:, ::-1, :]
                 depth = depth[:, ::-1]
                 c[0] = width - c[0] - 1
-                
 
         trans_input = get_affine_transform(
             c, s, rot, [self.opt.input_w, self.opt.input_h])
@@ -159,7 +187,7 @@ class CarPoseDataset(data.Dataset):
         ori = np.zeros((self.max_objs, 1), dtype=np.float32)
 
         rotbin = np.zeros((self.max_objs, 2), dtype=np.int64)
-        # rotheading = np.zeros((self.max_objs, 1), dtype=np.int64)
+        rotheading = np.zeros((self.max_objs, 1), dtype=np.int64)
         rotres = np.zeros((self.max_objs, 2), dtype=np.float32)
 
         rot_mask = np.zeros((self.max_objs), dtype=np.uint8)
@@ -177,7 +205,7 @@ class CarPoseDataset(data.Dataset):
         calib = np.array(anns[0]['calib'], dtype=np.float32)
         calib = np.reshape(calib, (3, 4))
         if flipped:
-          calib[0, 2] = width - calib[0, 2] - 1
+            calib[0, 2] = width - calib[0, 2] - 1
 
         gt_det = []
         for k in range(num_objs):
@@ -200,7 +228,7 @@ class CarPoseDataset(data.Dataset):
                 loc[0] = -loc[0]
                 bbox[[0, 2]] = width - bbox[[2, 0]] - 1
                 pts[:, 0] = width - pts[:, 0] - 1
-                
+
                 for e in self.flip_idx:
                     pts[e[0]], pts[e[1]] = pts[e[1]].copy(), pts[e[0]].copy()
 
@@ -216,31 +244,31 @@ class CarPoseDataset(data.Dataset):
 
             bbox[:2] = affine_transform(bbox[:2], trans_output)
             bbox[2:] = affine_transform(bbox[2:], trans_output)
-            temp_center = [(bbox[0] + bbox[2])/2, (bbox[1]+ bbox[3])/ 2]
+            temp_center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
 
             skipped = False
             if temp_center[0] <= 0 or temp_center[0] >= self.opt.output_w:
-              skipped = True
+                skipped = True
             if temp_center[1] <= 0 or temp_center[1] >= self.opt.output_h:
-              skipped = True
+                skipped = True
             if loc[2] > 60:
-              skipped = True
+                skipped = True
 
             bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, self.opt.output_w - 1)
             bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, self.opt.output_h - 1)
             h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
             if ((h > 0 and w > 0) or (rot != 0)) and not skipped:
                 alpha = self._convert_alpha(alpha1)
-                # alpha_cls, alpha_heading, alpha_offset = self.get_orien(alpha)
-                if alpha < np.pi / 6. or alpha > 5 * np.pi / 6.:
-                    rotbin[k, 0] = 1
-                    rotres[k, 0] = alpha - (-0.5 * np.pi)
-                if alpha > -np.pi / 6. or alpha < -5 * np.pi / 6.:
-                    rotbin[k, 1] = 1
-                    rotres[k, 1] = alpha - (0.5 * np.pi)
-                # rotheading[k] = alpha_heading
-                # rotbin[k] = alpha_cls
-                # rotres[k] = alpha_offset
+                alpha_cls, alpha_heading, alpha_offset = self.get_orien(alpha)
+                # if alpha < np.pi / 6. or alpha > 5 * np.pi / 6.:
+                #     rotbin[k, 0] = 1
+                #     rotres[k, 0] = alpha - (-0.5 * np.pi)
+                # if alpha > -np.pi / 6. or alpha < -5 * np.pi / 6.:
+                #     rotbin[k, 1] = 1
+                #     rotres[k, 1] = alpha - (0.5 * np.pi)
+                rotheading[k] = alpha_heading
+                rotbin[k] = alpha_cls
+                rotres[k] = alpha_offset
 
                 rot_scalar[k] = alpha
                 radius = gaussian_radius((math.ceil(h), math.ceil(w)))
@@ -286,10 +314,10 @@ class CarPoseDataset(data.Dataset):
             reg_mask *= 0
             kps_mask *= 0
         meta = {'file_name': file_name}
-        
+
         ret = {'input': inp, 'depth': depth_inp,
                'hm': hm, 'reg_mask': reg_mask, 'ind': ind, 'wh': wh,
-               'hps': kps, 'hps_mask': kps_mask, 'dim': dim, 'rotbin': rotbin, 'rotres': rotres,
+               'hps': kps, 'hps_mask': kps_mask, 'dim': dim, 'rotheading': rotheading, 'rotbin': rotbin, 'rotres': rotres,
                'rot_mask': rot_mask, 'dep': dep, 'rotscalar': rot_scalar, 'calib': calib,
                'opinv': trans_output_inv, 'meta': meta, "label_sel": label_sel, 'location': location, 'ori': ori}
         if self.opt.reg_offset:

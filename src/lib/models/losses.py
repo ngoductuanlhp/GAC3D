@@ -19,7 +19,6 @@ import numpy as np
 from utils import kitti_utils_torch as kitti_utils
 
 
-
 def boxes_iou_bev(boxes_a, boxes_b):
     """
     :param boxes_a: (M, 5)
@@ -255,7 +254,7 @@ class RegWeightedL1Loss(nn.Module):
         # mask_num = torch.sum(mask, dim=0)
         # print(mask_num.shape, loss.shape)
         # loss = (torch.sum(loss, dim=0) / (mask_num + 1e-4))/ mask_num.shape[0]
-        
+
         return loss
 
 # class RegWeightedL1Loss(nn.Module):
@@ -334,8 +333,9 @@ class BinRotLoss(nn.Module):
 
     def forward(self, output, mask, ind, rotbin, rotres):
         pred = _transpose_and_gather_feat(output, ind)
-        loss = compute_rot_loss(pred, rotbin, rotres, mask)
-        return loss
+        loss, head_loss, axis_loss, offset_loss = compute_rot_loss(
+            pred, rotheading, rotbin, rotres, mask)
+        return loss, head_loss, axis_loss, offset_loss
 
 
 def compute_res_loss(output, target):
@@ -365,8 +365,8 @@ class Position_loss(nn.Module):
         rot_sin = torch.abs(torch.sin(rot))
         rot_cos = torch.abs(torch.cos(rot))
         idx = (rot_cos > rot_sin).unsqueeze(2).expand_as(dimension).float()
-        dimension_inv = dimension.clone()[:,:,[0,2,1]]
-        dim = dimension * (1 -idx) + dimension_inv * idx 
+        dimension_inv = dimension.clone()[:, :, [0, 2, 1]]
+        dim = dimension * (1 - idx) + dimension_inv * idx
         return dim
 
     def forward(self, output, batch, phase=None):
@@ -402,16 +402,21 @@ class Position_loss(nn.Module):
         si = torch.zeros_like(kps[:, :, 0:1]) + calib[:, 0:1, 0:1]
 
         if self.opt.axis_head_angle:
-            alpha_heading_idx = torch.argmax(rot[:,:,0:2], dim = -1, keepdim = True)
-            alpha_cls_idx = torch.argmax(rot[:,:,2:4], dim = -1, keepdim = True)
+            alpha_heading_idx = torch.argmax(
+                rot[:, :, 0:2], dim=-1, keepdim=True)
+            alpha_cls_idx = torch.argmax(rot[:, :, 2:4], dim=-1, keepdim=True)
             alpha_offset = torch.atan(rot[:, :, 4:5] / rot[:, :, 5:6])
-            alpha_absolute_offset = (1-alpha_cls_idx)*(alpha_offset + np.pi/2) + alpha_cls_idx*(alpha_offset)
+            alpha_absolute_offset = (
+                1 - alpha_cls_idx) * (alpha_offset + np.pi / 2) + alpha_cls_idx * (alpha_offset)
 
-            alpna_pre = (1-alpha_heading_idx)*(alpha_absolute_offset) + alpha_heading_idx*(alpha_absolute_offset - np.pi)
+            alpna_pre = (1 - alpha_heading_idx) * (alpha_absolute_offset) + \
+                alpha_heading_idx * (alpha_absolute_offset - np.pi)
 
-            alpna_pre[alpna_pre > np.pi] = alpna_pre[alpna_pre > np.pi] - 2 * np.pi
-            alpna_pre[alpna_pre < - np.pi] = alpna_pre[alpna_pre < - np.pi] + 2 * np.pi
-        else: 
+            alpna_pre[alpna_pre > np.pi] = alpna_pre[alpna_pre >
+                                                     np.pi] - 2 * np.pi
+            alpna_pre[alpna_pre < -
+                      np.pi] = alpna_pre[alpna_pre < - np.pi] + 2 * np.pi
+        else:
             alpha_idx = rot[:, :, 1] > rot[:, :, 5]
             alpha_idx = alpha_idx.float()
             alpha1 = torch.atan(rot[:, :, 2] / rot[:, :, 3]) + (-0.5 * np.pi)
@@ -421,13 +426,13 @@ class Position_loss(nn.Module):
         # NOTE switch dimension
         if self.opt.dynamic_dim:
             dim = self.switch_dim(dim, alpna_pre)
-            
-        alpna_pre = alpna_pre.unsqueeze(2)
-        
-        alpha_diff = (torch.abs(alpna_pre.clone().squeeze(-1) - batch['rotscalar'].squeeze(-1))*batch['rot_mask']).sum()
-        num_rot = (batch['rot_mask'] != 0).float().sum()
-        alpha_diff = alpha_diff/(num_rot + 1e-4)
 
+        alpna_pre = alpna_pre.unsqueeze(2)
+
+        alpha_diff = (torch.abs(alpna_pre.clone().squeeze(-1) -
+                                batch['rotscalar'].squeeze(-1)) * batch['rot_mask']).sum()
+        num_rot = (batch['rot_mask'] != 0).float().sum()
+        alpha_diff = alpha_diff / (num_rot + 1e-4)
 
         # prior, discard in multi-class training
         # dim[:, :, 0] = torch.exp(dim[:, :, 0]) * 1.63
@@ -530,7 +535,7 @@ class Position_loss(nn.Module):
         dim_gt = batch['dim'].clone()  # b,c,3
         location_gt = batch['location']
         ori_gt = batch['ori']
-        
+
         # NOTE Position loss
         if self.opt.box_position_loss:
             gt_box = torch.cat((location_gt, dim_gt, ori_gt), dim=2)
@@ -542,7 +547,7 @@ class Position_loss(nn.Module):
             box_pred = kitti_utils.boxes3d_to_corners3d_torch(box_pred)
 
             loss = (box_pred - gt_box)
-            loss_norm = torch.norm(loss, p=2, dim=(1,2)) / 2.8 # /sqrt(8)
+            loss_norm = torch.norm(loss, p=2, dim=(1, 2)) / 2.8  # /sqrt(8)
             loss_norm = loss_norm.reshape(b, c)
         else:
             loss = (pinv - batch['location'])
@@ -609,57 +614,55 @@ class kp_conv(nn.Module):
         return kps
 
 
-# def compute_rot_loss(output, target_heading, target_bin, target_res, mask):
-#     # output: (B, 128, 5) [bin_headingx2, bin_clsx2, bin_offset]
-#     # target_heading: (B, 128, 1) 
-#     # target_bin: (B, 128, 1) 
-#     # target_offset: (B, 128, 1)
-#     # mask: (B, 128, 1)
-#     # import pdb; pdb.set_trace()
-#     output = output.view(-1, 6)
-#     target_heading = target_heading.view(-1,1)
-#     target_bin = target_bin.view(-1, 1)
-#     target_res = target_res.view(-1, 1)
-#     mask = mask.view(-1, 1)
-#     loss_heading = compute_bin_loss(output[:, 0:2], target_heading[:, 0], mask)
-    
-#     loss_cls = compute_bin_loss(output[:, 2:4], target_bin[:, 0], mask)
-#     # loss_res = compute_res_loss(output[:, 4:], target_res)
-#     loss_res_sin  = compute_res_loss(output[:, 4:5], torch.sin(target_res))
-#     loss_res_cos  = compute_res_loss(output[:, 5:6], torch.cos(target_res))
-#     loss_res = loss_res_sin + loss_res_cos
-#     return loss_heading + loss_cls + 2 * loss_res
-
-def compute_rot_loss(output, target_bin, target_res, mask):
-    # output: (B, 128, 8) [bin1_cls[0], bin1_cls[1], bin1_sin, bin1_cos,
-    #                 bin2_cls[0], bin2_cls[1], bin2_sin, bin2_cos]
-    # target_bin: (B, 128, 2) [bin1_cls, bin2_cls]
-    # target_res: (B, 128, 2) [bin1_res, bin2_res]
+def compute_rot_loss(output, target_heading, target_bin, target_res, mask):
+    # output: (B, 128, 5) [bin_headingx2, bin_clsx2, bin_offset]
+    # target_heading: (B, 128, 1)
+    # target_bin: (B, 128, 1)
+    # target_offset: (B, 128, 1)
     # mask: (B, 128, 1)
     # import pdb; pdb.set_trace()
-    output = output.view(-1, 8)
-    target_bin = target_bin.view(-1, 2)
-    target_res = target_res.view(-1, 2)
+    output = output.view(-1, 5)
+    target_heading = target_heading.view(-1, 1)
+    target_bin = target_bin.view(-1, 1)
+    target_res = target_res.view(-1, 1)
     mask = mask.view(-1, 1)
-    loss_bin1 = compute_bin_loss(output[:, 0:2], target_bin[:, 0], mask)
-    loss_bin2 = compute_bin_loss(output[:, 4:6], target_bin[:, 1], mask)
-    loss_res = torch.zeros_like(loss_bin1)
-    if target_bin[:, 0].nonzero().shape[0] > 0:
-        idx1 = target_bin[:, 0].nonzero()[:, 0]
-        valid_output1 = torch.index_select(output, 0, idx1.long())
-        valid_target_res1 = torch.index_select(target_res, 0, idx1.long())
-        loss_sin1 = compute_res_loss(
-            valid_output1[:, 2], torch.sin(valid_target_res1[:, 0]))
-        loss_cos1 = compute_res_loss(
-            valid_output1[:, 3], torch.cos(valid_target_res1[:, 0]))
-        loss_res += loss_sin1 + loss_cos1
-    if target_bin[:, 1].nonzero().shape[0] > 0:
-        idx2 = target_bin[:, 1].nonzero()[:, 0]
-        valid_output2 = torch.index_select(output, 0, idx2.long())
-        valid_target_res2 = torch.index_select(target_res, 0, idx2.long())
-        loss_sin2 = compute_res_loss(
-            valid_output2[:, 6], torch.sin(valid_target_res2[:, 1]))
-        loss_cos2 = compute_res_loss(
-            valid_output2[:, 7], torch.cos(valid_target_res2[:, 1]))
-        loss_res += loss_sin2 + loss_cos2
-    return loss_bin1 + loss_bin2 + loss_res
+    # print(output[:, 0:2].shape, target_heading[:, 0:2].shape)
+    loss_heading = compute_bin_loss(output[:, 0:2], target_heading[:, 0], mask)
+
+    loss_cls = compute_bin_loss(output[:, 2:4], target_bin[:, 0], mask)
+    loss_res = compute_res_loss(output[:, 4:], target_res)
+    return 0.1 * loss_heading + 0.1 * loss_cls + 100 * loss_res, loss_heading, loss_cls, loss_res
+
+# def compute_rot_loss(output, target_bin, target_res, mask):
+#     # output: (B, 128, 8) [bin1_cls[0], bin1_cls[1], bin1_sin, bin1_cos,
+#     #                 bin2_cls[0], bin2_cls[1], bin2_sin, bin2_cos]
+#     # target_bin: (B, 128, 2) [bin1_cls, bin2_cls]
+#     # target_res: (B, 128, 2) [bin1_res, bin2_res]
+#     # mask: (B, 128, 1)
+#     # import pdb; pdb.set_trace()
+#     output = output.view(-1, 8)
+#     target_bin = target_bin.view(-1, 2)
+#     target_res = target_res.view(-1, 2)
+#     mask = mask.view(-1, 1)
+#     loss_bin1 = compute_bin_loss(output[:, 0:2], target_bin[:, 0], mask)
+#     loss_bin2 = compute_bin_loss(output[:, 4:6], target_bin[:, 1], mask)
+#     loss_res = torch.zeros_like(loss_bin1)
+#     if target_bin[:, 0].nonzero().shape[0] > 0:
+#         idx1 = target_bin[:, 0].nonzero()[:, 0]
+#         valid_output1 = torch.index_select(output, 0, idx1.long())
+#         valid_target_res1 = torch.index_select(target_res, 0, idx1.long())
+#         loss_sin1 = compute_res_loss(
+#             valid_output1[:, 2], torch.sin(valid_target_res1[:, 0]))
+#         loss_cos1 = compute_res_loss(
+#             valid_output1[:, 3], torch.cos(valid_target_res1[:, 0]))
+#         loss_res += loss_sin1 + loss_cos1
+#     if target_bin[:, 1].nonzero().shape[0] > 0:
+#         idx2 = target_bin[:, 1].nonzero()[:, 0]
+#         valid_output2 = torch.index_select(output, 0, idx2.long())
+#         valid_target_res2 = torch.index_select(target_res, 0, idx2.long())
+#         loss_sin2 = compute_res_loss(
+#             valid_output2[:, 6], torch.sin(valid_target_res2[:, 1]))
+#         loss_cos2 = compute_res_loss(
+#             valid_output2[:, 7], torch.cos(valid_target_res2[:, 1]))
+#         loss_res += loss_sin2 + loss_cos2
+#     return loss_bin1 + loss_bin2 + loss_res

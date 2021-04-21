@@ -243,10 +243,6 @@ class Opts(object):
                                  help='encoding angle as axis, heading, offset')
         self.parser.add_argument('--box_position_loss', action='store_true',
                                  help='calculate position loss as 8 corners losses')
-        self.parser.add_argument('--not_depth_guide', action='store_true',
-                                 help='')
-        self.parser.add_argument('--not_joint_task', action='store_true',
-                                 help='')
 
     def parse(self, args=''):
         if args == '':
