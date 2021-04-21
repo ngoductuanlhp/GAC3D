@@ -31,7 +31,7 @@ class ModelWithLoss(torch.nn.Module):
 
     def forward(self, batch, unlabel=False, phase=None):
         # print("Mean", torch.mean(batch['depth']))
-        outputs = self.model(batch['input'], batch['depth'])
+        outputs = self.model(batch['input'])
         # print("Mean", torch.mean(outputs[0]['hm']))
         if unlabel:
             loss, loss_stats = outputs[-1]['dim'].mean(), {}
@@ -124,6 +124,7 @@ class BaseTrainer(object):
             #        loss['prob_loss'].mean()*self.rampup_prob(epoch)+\
             #        loss['coor_loss'].mean()*coor_weight
             loss = loss['hm_loss'].mean() * opt.hm_weight + \
+                loss['depth_loss'].mean() * opt.depth_weight + \
                 loss['wh_loss'].mean() * opt.wh_weight + \
                 loss['off_loss'].mean() * opt.off_weight + \
                 loss['hp_loss'].mean() * opt.hp_weight + \

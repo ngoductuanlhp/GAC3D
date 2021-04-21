@@ -8,6 +8,8 @@ import numpy as np
 import json
 import os
 import torch.utils.data as data
+
+
 class KITTIHP(data.Dataset):
     num_classes = 3
     num_joints = 9
@@ -20,7 +22,6 @@ class KITTIHP(data.Dataset):
                           np.float32).reshape(1, 1, 1)  # DISP
     depth_std = np.array([19.992999492848206], np.float32).reshape(1, 1, 1)
 
-
     flip_idx = [[0, 1], [2, 3], [4, 5], [6, 7]]
 
     def __init__(self, opt, split):
@@ -31,16 +32,16 @@ class KITTIHP(data.Dataset):
 
         self.acc_idxs = [1, 2, 3, 4, 5, 6, 7, 8]
         self.data_dir = os.path.join(opt.data_dir, 'kitti')
-        self.img_dir= os.path.join(self.data_dir,'image')
-        self.calib_dir = os.path.join(self.data_dir,'calib')
-        self.depth_dir = os.path.join(self.data_dir, 'depth_adabin')
+        self.img_dir = os.path.join(self.data_dir, 'image')
+        self.calib_dir = os.path.join(self.data_dir, 'calib')
+        self.depth_dir = os.path.join(self.data_dir, 'depth_gt_value')
         if split == 'test':
             self.annot_path = os.path.join(
                 self.data_dir, 'annotations',
                 'image_info_test-dev2017.json').format(split)
         else:
             if opt.stereo_aug:
-                data_used = split+'_stereo'
+                data_used = split + '_stereo'
             else:
                 data_used = split
             self.annot_path = os.path.join(
@@ -77,4 +78,3 @@ class KITTIHP(data.Dataset):
 
     def __len__(self):
         return self.num_samples
-
