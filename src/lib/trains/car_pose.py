@@ -5,7 +5,7 @@ from __future__ import print_function
 import torch
 import numpy as np
 
-from models.losses import FocalLoss, RegL1Loss, RegLoss, RegWeightedL1Loss, BinRotLoss, Position_loss, RegL1LossDimen
+from models.losses import FocalLoss, RegL1Loss, RegLoss, RegWeightedL1Loss,RegWeightedUncertaintyL1Loss, BinRotLoss, Position_loss, RegL1LossDimen
 from models.decode import car_pose_decode, _topk
 from models.utils import _sigmoid
 from utils.debugger import Debugger
@@ -19,8 +19,8 @@ class CarPoseLoss(torch.nn.Module):
         super(CarPoseLoss, self).__init__()
         self.crit = FocalLoss()
         self.crit_hm_hp = torch.nn.MSELoss() if opt.mse_loss else FocalLoss()
-        self.crit_kp = RegWeightedL1Loss() if not opt.dense_hp else \
-            torch.nn.L1Loss(reduction='sum')
+        # self.crit_kp = RegWeightedL1Loss()
+        self.crit_kp = RegWeightedUncertaintyL1Loss()
         self.crit_reg = RegL1Loss() if opt.reg_loss == 'l1' else \
             RegLoss() if opt.reg_loss == 'sl1' else None
         # self.crit_dim = RegL1LossDimen()
@@ -39,7 +39,7 @@ class CarPoseLoss(torch.nn.Module):
         output['hm'] = _sigmoid(output['hm'])
         hm_loss = self.crit(output['hm'], batch['hm'])
         hp_loss = self.crit_kp(
-            output['hps'], batch['hps_mask'], batch['ind'], batch['hps'], batch['dep'])
+            output['hps'], output['hps_var'], batch['hps_mask'], batch['ind'], batch['hps'], batch['dep'])
         if opt.wh_weight > 0:
             wh_loss = self.crit_reg(output['wh'], batch['reg_mask'],batch['ind'], batch['wh'])
         if opt.dim_weight > 0:
@@ -53,12 +53,12 @@ class CarPoseLoss(torch.nn.Module):
         #     hp_offset_loss = self.crit_reg(output['hp_offset'], batch['hp_mask'], batch['hp_ind'], batch['hp_offset'])
         # if opt.hm_hp and opt.hm_hp_weight > 0:
         #     hm_hp_loss = self.crit_hm_hp(output['hm_hp'], batch['hm_hp'])
-        coor_loss, prob_loss, box_score, alpha_diff = self.position_loss(
+        coor_loss, box_score, alpha_diff = self.position_loss(
             output, batch, phase)
         loss_stats = {'loss': box_score, 'hm_loss': hm_loss, 'hp_loss': hp_loss,
                       'dim_loss': dim_loss,
                       'off_loss': off_loss, 'wh_loss': wh_loss,
-                      'rot_loss': rot_loss, 'prob_loss': prob_loss, 'box_score': box_score, 'coor_loss': coor_loss, 
+                      'rot_loss': rot_loss, 'box_score': box_score, 'coor_loss': coor_loss, 
                       'alpha_diff': alpha_diff}
 
         return loss_stats, loss_stats
@@ -70,7 +70,7 @@ class CarPoseTrainer(BaseTrainer):
 
     def _get_losses(self, opt):
         loss_states = ['loss', 'hm_loss', 'hp_loss', 'dim_loss', 'off_loss', 'wh_loss',
-                       'rot_loss', 'prob_loss', 'coor_loss', 'box_score', 'alpha_diff']
+                       'rot_loss', 'coor_loss', 'box_score', 'alpha_diff']
         loss = CarPoseLoss(opt)
         return loss_states, loss
 

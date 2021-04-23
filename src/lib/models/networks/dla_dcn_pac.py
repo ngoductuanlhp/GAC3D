@@ -474,7 +474,11 @@ class DLASeg(nn.Module):
                     nn.Conv2d(head_conv, classes,
                               kernel_size=final_kernel, stride=1,
                               padding=final_kernel // 2, bias=True))
-                if 'hm' in head:
+                if 'hps_var' in head:
+                    fc[-1].weight.data.normal_(0, 0.0001)
+                    fc[-1].bias.data.fill_(0)
+                    # m.weight.data.normal_
+                elif 'hm' in head:
                     fc[-1].bias.data.fill_(-2.19)
                 else:
                     fill_fc_weights(fc)

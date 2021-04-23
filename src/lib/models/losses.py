@@ -258,6 +258,30 @@ class RegWeightedL1Loss(nn.Module):
         
         return loss
 
+class RegWeightedUncertaintyL1Loss(nn.Module):
+    def __init__(self):
+        super(RegWeightedL1Loss, self).__init__()
+
+    def forward(self, output, output_var, mask, ind, target, dep):
+        dep = dep.squeeze(2)
+        dep[dep < 5] = dep[dep < 5] * 0.01
+        dep[dep >= 5] = torch.log10(dep[dep >= 5] - 4) + 0.1
+        pred = _transpose_and_gather_feat(output, ind)
+        pred_var = _transpose_and_gather_feat(output_var, ind)
+        mask = mask.float()
+
+        loss = torch.abs(pred * mask - target * mask) * torch.exp(-pred_var) + 0.5 * pred_var
+        # loss = torch.abs(pred * mask - target * mask)
+        loss = torch.sum(loss, dim=2) * dep
+        loss = loss.sum()
+        loss = loss / (mask.sum() + 1e-4)
+        # print("RegWeightedL1Loss", mask.shape)
+        # mask_num = torch.sum(mask, dim=0)
+        # print(mask_num.shape, loss.shape)
+        # loss = (torch.sum(loss, dim=0) / (mask_num + 1e-4))/ mask_num.shape[0]
+        
+        return loss
+
 # class RegWeightedL1Loss(nn.Module):
 #     def __init__(self):
 #         super(RegWeightedL1Loss, self).__init__()
@@ -372,7 +396,7 @@ class Position_loss(nn.Module):
     def forward(self, output, batch, phase=None):
         dim = _transpose_and_gather_feat(output['dim'], batch['ind'])
         rot = _transpose_and_gather_feat(output['rot'], batch['ind'])
-        prob = _transpose_and_gather_feat(output['prob'], batch['ind'])
+        # prob = _transpose_and_gather_feat(output['prob'], batch['ind'])
         kps = _transpose_and_gather_feat(output['hps'], batch['ind'])
         kps = kps[:, :, :18]
         rot = rot.detach()
@@ -562,16 +586,16 @@ class Position_loss(nn.Module):
 
         box_score = boxes_iou3d_gpu(box_pred, gt_box)
         box_score = torch.diag(box_score).view(b, c)
-        prob = prob.squeeze(2)
+        # prob = prob.squeeze(2)
         box_score = box_score * loss_mask * dim_mask_score_mask
-        loss_prob = F.binary_cross_entropy_with_logits(
-            prob, box_score.detach(), reduce=False)
-        loss_prob = loss_prob * loss_mask * dim_mask_score_mask
-        loss_prob = torch.sum(loss_prob, dim=1)
-        loss_prob = loss_prob.sum() / (mask_num + 1e-4)
+        # loss_prob = F.binary_cross_entropy_with_logits(
+        #     prob, box_score.detach(), reduce=False)
+        # loss_prob = loss_prob * loss_mask * dim_mask_score_mask
+        # loss_prob = torch.sum(loss_prob, dim=1)
+        # loss_prob = loss_prob.sum() / (mask_num + 1e-4)
         box_score = box_score * loss_mask
         box_score = box_score.sum() / (mask_num + 1e-4)
-        return loss, loss_prob, box_score, alpha_diff
+        return loss, box_score, alpha_diff
 
 
 class kp_align(nn.Module):
