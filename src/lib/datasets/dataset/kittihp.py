@@ -43,12 +43,12 @@ class KITTIHP(data.Dataset):
                 data_used = split+'_stereo'
             else:
                 data_used = split 
+                # self.annot_path = os.path.join(
+                # self.data_dir, 'annotations',
+                # 'kitti_trainval_lr.json')
                 self.annot_path = os.path.join(
-                self.data_dir, 'annotations',
-                'kitti_trainval_lr.json')
-            # self.annot_path = os.path.join(
-            #     self.data_dir, 'annotations',
-            #     'kitti_{}.json').format(data_used)
+                    self.data_dir, 'annotations',
+                    'kitti_{}.json').format(data_used)
         self.max_objs = 32
         self._data_rng = np.random.RandomState(123)
         self._eig_val = np.array([0.2141788, 0.01817699, 0.00341571],

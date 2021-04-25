@@ -332,10 +332,7 @@ class Opts(object):
                      'hps': 20, 'rot': 8, 'dim': 3, 'prob': 1}
         if opt.reg_offset:
             opt.heads.update({'reg': 2})
-        # if opt.hm_hp:
-        #     opt.heads.update({'hm_hp': 9})
-        # if opt.reg_hp_offset:
-        #     opt.heads.update({'hp_offset': 2})
+            
         return opt
 
     def init(self, args=''):

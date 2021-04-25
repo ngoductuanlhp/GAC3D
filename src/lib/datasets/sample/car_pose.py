@@ -158,9 +158,11 @@ class CarPoseDataset(data.Dataset):
         dep = np.zeros((self.max_objs, 1), dtype=np.float32)
         ori = np.zeros((self.max_objs, 1), dtype=np.float32)
 
-        rotbin = np.zeros((self.max_objs, 1), dtype=np.int64)
-        rotheading = np.zeros((self.max_objs, 1), dtype=np.int64)
-        rotres = np.zeros((self.max_objs, 1), dtype=np.float32)
+        # rotbin = np.zeros((self.max_objs, 1), dtype=np.int64)
+        # rotheading = np.zeros((self.max_objs, 1), dtype=np.int64)
+        # rotres = np.zeros((self.max_objs, 1), dtype=np.float32)
+        rotbin = np.zeros((self.max_objs, 2), dtype=np.int64)
+        rotres = np.zeros((self.max_objs, 2), dtype=np.float32)
 
         rot_mask = np.zeros((self.max_objs), dtype=np.uint8)
         kps = np.zeros((self.max_objs, num_joints * 2), dtype=np.float32)
@@ -231,16 +233,21 @@ class CarPoseDataset(data.Dataset):
             h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
             if ((h > 0 and w > 0) or (rot != 0)) and not skipped:
                 alpha = self._convert_alpha(alpha1)
-                alpha_cls, alpha_heading, alpha_offset = self.get_orien(alpha)
-                # if alpha < np.pi / 6. or alpha > 5 * np.pi / 6.:
-                #     rotbin[k, 0] = 1
-                #     rotres[k, 0] = alpha - (-0.5 * np.pi)
-                # if alpha > -np.pi / 6. or alpha < -5 * np.pi / 6.:
-                #     rotbin[k, 1] = 1
-                #     rotres[k, 1] = alpha - (0.5 * np.pi)
-                rotheading[k] = alpha_heading
-                rotbin[k] = alpha_cls
-                rotres[k] = alpha_offset
+
+                # axis-heading angle
+                # alpha_cls, alpha_heading, alpha_offset = self.get_orien(alpha)
+                # rotheading[k] = alpha_heading
+                # rotbin[k] = alpha_cls
+                # rotres[k] = alpha_offset
+
+                # multi-bins
+                if alpha < np.pi / 6. or alpha > 5 * np.pi / 6.:
+                    rotbin[k, 0] = 1
+                    rotres[k, 0] = alpha - (-0.5 * np.pi)
+                if alpha > -np.pi / 6. or alpha < -5 * np.pi / 6.:
+                    rotbin[k, 1] = 1
+                    rotres[k, 1] = alpha - (0.5 * np.pi)
+                
 
                 rot_scalar[k] = alpha
                 radius = gaussian_radius((math.ceil(h), math.ceil(w)))
@@ -281,10 +288,7 @@ class CarPoseDataset(data.Dataset):
                 gt_det.append([ct[0] - w / 2, ct[1] - h / 2,
                                ct[0] + w / 2, ct[1] + h / 2, 1] +
                               pts[:, :2].reshape(num_joints * 2).tolist() + [cls_id])
-        if rot != 0:
-            hm = hm * 0 + 0.9999
-            reg_mask *= 0
-            kps_mask *= 0
+
         meta = {'file_name': file_name}
         
         ret = {'input': inp, 'depth': depth_inp,
