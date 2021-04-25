@@ -39,15 +39,10 @@ class CarPoseDetector(BaseDetector):
                 output = self.model(images, depths)[-1]
             # output = self.model(images)[-1]
             output['hm'] = output['hm'].sigmoid_()
-            # if self.opt.hm_hp and not self.opt.mse_loss:
-            #     output['hm_hp'] = output['hm_hp'].sigmoid_()
-
-            # reg = output['reg'] if self.opt.reg_offset else None
-            # hm_hp = output['hm_hp'] if self.opt.hm_hp else None
-            # hp_offset = output['hp_offset'] if self.opt.reg_hp_offset else None
+            output['hps_var'] = output['hps_var'].sigmoid_()
 
             dets = car_pose_decode(
-                output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],
+                output['hm'], output['hps'], output['hps_var'], output['dim'], output['rot'],
                 reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const,
                 dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle, not_joint_task=self.opt.not_joint_task)
 

@@ -767,7 +767,7 @@ def gen_position(kps, dim, rot, const, calib, opinv, ground_plane, pos_y=None, d
 
 
 def car_pose_decode(
-        heat, kps, dim, rot, prob, reg=None, wh=None, K=100, meta=None, const=None, dynamic_dim=False, axis_head_angle=False, not_joint_task=False):
+        heat, kps, kps_var, dim, rot, reg=None, wh=None, K=100, meta=None, const=None, dynamic_dim=False, axis_head_angle=False, not_joint_task=False):
 
     batch, cat, height, width = heat.size()
     num_joints = kps.shape[1] // 2
@@ -799,8 +799,14 @@ def car_pose_decode(
     else:
         rot = rot.view(batch, K, 8)
 
-    prob = _transpose_and_gather_feat(prob, inds)[:, :, 0]
-    prob = prob.view(batch, K, 1)
+    # prob = _transpose_and_gather_feat(prob, inds)[:, :, 0]
+    # prob = prob.view(batch, K, 1)
+    kps_var = _transpose_and_gather_feat(kps_var, inds)
+    kps_var = kps_var.view(batch, K, num_joints * 2)
+    kps_var = kps_var[:,:,0:18]
+    kps_var = kps_var.mean(dim=-1, keepdim=True)
+    prob = 1 - kps_var
+    # print("Prob shape", prob.shape)
 
     calib = meta['calib']
 

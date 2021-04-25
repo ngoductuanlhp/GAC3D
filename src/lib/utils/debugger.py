@@ -280,7 +280,8 @@ class Debugger(object):
         file_number = img_path.split('.')[-2][-6:]
         box = results[:4]
 
-        score = results[4]*(1/(1+math.exp(-results[39])))
+        # score = results[4]*(1/(1+math.exp(-results[39])))
+        score = results[4]*results[39]
 
         dim = results[32:35]
         pos = results[36:39]
