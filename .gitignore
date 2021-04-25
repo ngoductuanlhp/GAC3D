@@ -2,6 +2,9 @@ kitti_format/
 kitti_test/
 kitti_format
 kitti_test
+*/*/*/__pycache__/
+*/*/__pycache__/
+*/__pycache__/
 __pycache__/
 *.py[cod]
 eggs/
@@ -13,3 +16,4 @@ dist/
 *.pyc
 *.o
 *.so
+*.cpython-36
