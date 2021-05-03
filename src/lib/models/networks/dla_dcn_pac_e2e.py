@@ -512,7 +512,6 @@ class DLASeg(nn.Module):
         for i in range(self.last_level - self.first_level):
             y.append(x[i].clone())
         self.ida_up(y, 0, len(y))
-
         # depthnet
         z = {}
 

@@ -175,7 +175,7 @@ class Opts(object):
         self.parser.add_argument('--wh_weight', type=float, default=0.1,
                                  help='loss weight for bounding box size.')
 
-        self.parser.add_argument('--depth_weight', type=float, default=0.5,
+        self.parser.add_argument('--depth_weight', type=float, default=0.8,
                                  help='loss weight for depth_maps.')
         # multi_pose
         self.parser.add_argument('--hp_weight', type=float, default=1,
