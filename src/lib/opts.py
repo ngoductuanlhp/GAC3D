@@ -298,7 +298,7 @@ class Opts(object):
         opt.exp_dir = os.path.join(data_dir, 'exp')
         opt.save_dir = os.path.join(opt.exp_dir, opt.exp_id)
         opt.debug_dir = os.path.join(opt.save_dir, 'debug')
-        opt.results_dir = os.path.join(opt.exp_dir, 'results')
+        opt.results_dir = os.path.join(opt.exp_dir, 'results_train_base_gac3d_2')
         print('The output will be saved to ', opt.save_dir)
 
         if opt.resume and opt.load_model == '':

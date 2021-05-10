@@ -334,7 +334,7 @@ class BinRotLoss(nn.Module):
 
     def forward(self, output, mask, ind, rotbin, rotres):
         pred = _transpose_and_gather_feat(output, ind)
-        loss = compute_rot_loss(pred, rotbin, rotheading, rotres, mask)
+        loss = compute_rot_loss(pred, rotbin, rotres, mask)
         return loss
 
 

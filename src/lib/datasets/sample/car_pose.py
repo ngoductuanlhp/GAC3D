@@ -293,7 +293,7 @@ class CarPoseDataset(data.Dataset):
         
         ret = {'input': inp, 'depth': depth_inp,
                'hm': hm, 'reg_mask': reg_mask, 'ind': ind, 'wh': wh,
-               'hps': kps, 'hps_mask': kps_mask, 'dim': dim, 'rotbin': rotbin, 'rotres': rotres, 'rotheading': rotheading,
+               'hps': kps, 'hps_mask': kps_mask, 'dim': dim, 'rotbin': rotbin, 'rotres': rotres, 
                'rot_mask': rot_mask, 'dep': dep, 'rotscalar': rot_scalar, 'calib': calib,
                'opinv': trans_output_inv, 'meta': meta, "label_sel": label_sel, 'location': location, 'ori': ori}
         if self.opt.reg_offset:
