@@ -18,5 +18,5 @@ dist/
 *.so
 *.cpython-36
 
-/src_trt/onnx-tensorrt/build/
-/src_trt/build/
+/trt_src/onnx-tensorrt/build/
+/trt_src/build/
