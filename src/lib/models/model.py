@@ -10,10 +10,11 @@ import os
 from .networks.msra_resnet import get_pose_net
 from .networks.dlav0 import get_pose_net as get_dlav0
 from .networks.pose_dla_dcn import get_pose_net as get_dla_dcn
-from .networks.resnet_dcn import get_pose_net as get_pose_net_dcn
-from .networks.large_hourglass import get_large_hourglass_net
+
 from .networks.dla_dcn_pac import get_pose_net as get_dlapac
 from .networks.dla_dcn_pac_noconv import get_pose_net as get_dlapac_noconv
+from .networks.dla_dcn_pac_fake import get_pose_net as get_dlapac_fake
+from .networks.resnet_pac_fake import get_pose_net as get_resnet_fake
 
 
 
@@ -21,10 +22,10 @@ _model_factory = {
   'res': get_pose_net, # default Resnet with deconv
   'dlav0': get_dlav0, # default DLAup
   'dla': get_dla_dcn,
-  'resdcn': get_pose_net_dcn,
-  'hourglass': get_large_hourglass_net,
   'dlapac': get_dlapac,
   'dlapacnc': get_dlapac_noconv,
+  'dlafake': get_dlapac_fake,
+  'resfake': get_resnet_fake,
 }
 
 def create_model(arch, heads, head_conv):

@@ -23,15 +23,35 @@ from utils.debugger import Debugger
 
 from .base_detector import BaseDetector
 
+from torch.onnx import OperatorExportTypes
+import onnxruntime
+import onnx
+
 
 class CarPoseDetector(BaseDetector):
-    def __init__(self, opt):
+    def __init__(self, opt, onnx=False):
         super(CarPoseDetector, self).__init__(opt)
         self.flip_idx = opt.flip_idx
         self.not_depth_guide = opt.not_depth_guide
         self.backbonea_arch = opt.arch.split('_')[0]
+        self.export_onnx = onnx
 
     def process(self, images, depths, meta, return_time=False):
+        # NOTE export ONNX
+        if self.export_onnx:
+            with torch.no_grad():
+                onnx_path = self.opt.load_model[:-4] + ".onnx"
+                hm, hps, rot, dim, prob = self.model(images) # remember the order of outputs
+                torch.onnx.export(self.model, images, 
+                                    onnx_path, 
+                                    operator_export_type=OperatorExportTypes.ONNX_ATEN_FALLBACK, 
+                                    verbose=True, 
+                                    input_names= ['input'],
+                                    output_names=["hm", "hps", "rot", "dim", "prob"])
+
+                print("Export ONNX successful. Model is saved at", onnx_path)
+            quit()
+
         with torch.no_grad():
             if self.not_depth_guide or self.backbonea_arch == 'dla':
                 output = self.model(images)[-1]
@@ -39,12 +59,6 @@ class CarPoseDetector(BaseDetector):
                 output = self.model(images, depths)[-1]
             # output = self.model(images)[-1]
             output['hm'] = output['hm'].sigmoid_()
-            # if self.opt.hm_hp and not self.opt.mse_loss:
-            #     output['hm_hp'] = output['hm_hp'].sigmoid_()
-
-            # reg = output['reg'] if self.opt.reg_offset else None
-            # hm_hp = output['hm_hp'] if self.opt.hm_hp else None
-            # hp_offset = output['hp_offset'] if self.opt.reg_hp_offset else None
 
             dets = car_pose_decode(
                 output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],

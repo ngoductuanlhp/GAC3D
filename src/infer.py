@@ -16,9 +16,7 @@ def main(opt):
     opt.debug = max(opt.debug, 1)
     # opt.heads = {'hm': 1, 'hps': 20, 'rot': 8, 'dim': 3, 'prob': 1}
     opt.heads = {'hm': 3, 'hps': 20, 'rot': 8, 'dim': 3, 'prob': 1, 'reg': 2, 'wh': 2}
-    # opt.hm_hp=False
-    # opt.reg_offset=False
-    # opt.reg_hp_offset=False
+
     detector = CarPoseDetector(opt)
     if os.path.exists(opt.results_dir):
         shutil.rmtree(opt.results_dir,True)
@@ -36,12 +34,6 @@ def main(opt):
         depth_name = depth_names[i]
         num+=1
         ret = detector.run(image_name, depth_name)
-        # time_str = ''
-        # for stat in time_stats:
-        #     time_tol=time_tol+ret[stat]
-        #     time_str = time_str + '{} {:.3f}s |'.format(stat, ret[stat])
-        # time_str=time_str+'{} {:.3f}s |'.format('tol', time_tol/num)
-        # print(time_str)
 
     # NOTE Fulfil empty files
     for (image_name) in image_names:
