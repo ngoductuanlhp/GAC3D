@@ -41,7 +41,8 @@ class CarPoseDetector(BaseDetector):
         if self.export_onnx:
             with torch.no_grad():
                 onnx_path = self.opt.load_model[:-4] + ".onnx"
-                hm, hps, rot, dim, prob = self.model(images) # remember the order of outputs
+                # hm, features = self.model(images) # remember the order of outputs
+                hm, hps, rot, dim, prob = self.model(images) 
                 torch.onnx.export(self.model, images, 
                                     onnx_path, 
                                     operator_export_type=OperatorExportTypes.ONNX_ATEN_FALLBACK, 

@@ -506,8 +506,10 @@ class DLASeg(nn.Module):
         # inp_depth = self.depth_net(depth_scaled)
         for head in self.heads:
             # inp = {'x':y[-1], 'depth': inp_depth}
-            z[head] = self.__getattr__(head)(y[-1])                                                                                                 
-        return z['hm'], z['hps'], z['rot'], z['dim'], z['prob']
+            z[head] = self.__getattr__(head)(y[-1])  
+
+        features = torch.cat((z['hps'], z['rot'], z['dim'], z['prob']), dim=1)                                                                                                
+        return z['hm'], features
 
 
 def get_pose_net(num_layers, heads, head_conv=256, down_ratio=4):

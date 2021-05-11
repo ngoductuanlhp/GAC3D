@@ -235,7 +235,8 @@ class PoseResNet(nn.Module):
         for head in self.heads:
             # print('head', head)
             ret[head] = self.__getattr__(head)(x)
-                                                                                       
+        # features = torch.cat((ret['hps'], ret['rot'], ret['dim'], ret['prob']), dim=1) 
+        # return ret['hm'], features                                              
         return ret['hm'], ret['hps'], ret['rot'], ret['dim'], ret['prob']
 
     def draw_features(self,width, height, x, savename):

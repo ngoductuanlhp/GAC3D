@@ -1,5 +1,4 @@
 import numpy as np
-import cv2
 from pycuda.gpuarray import GPUArray
 import pycuda.gpuarray as gpuarray
 import pycuda.autoinit
@@ -141,16 +140,9 @@ def gpuarray_to_tensor(gpuarray):
     return out
 
 
-TRT_PATH = '/home/ml4u/RTM3D_weights/res18_gac_base_int8.trt'
-
-# path plugin for DCNv2
-DCN_PLUGIN_LIBRARY = "/home/ml4u/RTM3Dv2-TensorRT/tensorrt-plugin/build/libDCN.so"
-# DCN_PLUGIN_LIBRARY = "/home/ml4u/TensorRT-CenterNet/lib/libctdet.so"
-
 class RTM3D_Engine(object):
     def _load_plugins(self, dcn_lib):
-        # load DCNv2 plugin
-        print('dcn_lib', dcn_lib)
+        # NOTE load DCNv2 plugin
         ctypes.CDLL(dcn_lib, RTLD_GLOBAL)
         trt.init_libnvinfer_plugins(self.trt_logger, '')
 
@@ -166,12 +158,7 @@ class RTM3D_Engine(object):
         out_ptr = 0
         for binding in self.engine:
             size = trt.volume(self.engine.get_binding_shape(binding)) * self.engine.max_batch_size
-            # print("szie:", size)
             dtype = trt.nptype(self.engine.get_binding_dtype(binding))
-            # Allocate host and device buffers
-            # device_mem = cuda.mem_alloc(host_mem.nbytes)
-            
-            # Append the device buffer to device bindings.
             
             # Append to the appropriate list.
             if self.engine.binding_is_input(binding):
@@ -191,18 +178,11 @@ class RTM3D_Engine(object):
 
     def __init__(self, load_model, dcn_lib, batch=1):
         t1 = time.time()
-        self.mean = np.array([0.485 * 255, 0.456 * 255, 0.406 * 255], dtype=np.float32).reshape(1, 1, 3)
-        self.std = np.array([0.229 * 255, 0.224 * 255, 0.225 * 255], dtype=np.float32).reshape(1, 1, 3)
         self.threshold = 0.4
         self.batch_size = batch
-        self.img_h_new, self.img_w_new, self.scale_h, self.scale_w = 384, 1280, 1, 1
+        self.img_h_new, self.img_w_new = 384, 1280
         self.striped_h, self.striped_w =  int(self.img_h_new / 4), int(self.img_w_new / 4)
-        # self.shape_of_output = [(batch, 20, self.striped_h, self.striped_w), # hps
-        #                         (batch, 8, self.striped_h, self.striped_w), # rot
-        #                         (batch, 3, self.striped_h, self.striped_w),# dim
-        #                         (batch, 1, self.striped_h, self.striped_w), # prob
-        #                         (batch, 3, self.striped_h, self.striped_w) # hm
-        #                         ]
+
         self.shape_of_output = [(batch, 3, self.striped_h, self.striped_w), # hps
                                 (batch, 20, self.striped_h, self.striped_w), # rot
                                 (batch, 8, self.striped_h, self.striped_w),# dim
@@ -228,6 +208,7 @@ class RTM3D_Engine(object):
         self.dim = torch.zeros((batch * 3 * self.striped_h * self.striped_w), dtype=torch.float32).cuda()
         self.prob = torch.zeros((batch * 1 * self.striped_h * self.striped_w), dtype=torch.float32).cuda()
         self.hm = torch.zeros((batch * 3 * self.striped_h * self.striped_w), dtype=torch.float32).cuda()
+        # self.features = torch.zeros((batch * 32 * self.striped_h * self.striped_w), dtype=torch.float32).cuda()
 
         # NOTE INPUT GPU MEM
         self.img_gpu = gpuarray.empty(3*384*1280, dtype=np.float32)
@@ -235,34 +216,20 @@ class RTM3D_Engine(object):
         self.host_mem = cuda.pagelocked_empty((3,384,1280), dtype=np.float32)
 
         # NOTE OUT GPU TENSOR
-        # self.out_ptrs = [self.hps, self.rot, self.dim, self.prob, self.hm]
         self.out_ptrs = [self.hm, self.hps, self.rot, self.dim, self.prob]
-        # try:
-        self._load_plugins(dcn_lib)
-        self.engine = self._load_engine(load_model)
-        self.context = self.engine.create_execution_context()
-        self.stream = cuda.Stream()
-        self.outputs, self.bindings = self._allocate_buffers()
-        print("[RTM3D_Engine] Model loaded in {:.3}s".format(time.time() - t1))
-        # except Exception as e:
-        #     raise RuntimeError('Build engine failed:', e) from e
+        # self.out_ptrs = [self.hm, self.features]
+        try:
+            self._load_plugins(dcn_lib)
+            self.engine = self._load_engine(load_model)
+            self.context = self.engine.create_execution_context()
+            self.stream = cuda.Stream()
+            self.outputs, self.bindings = self._allocate_buffers()
+            print("[RTM3D_Engine] Model loaded in {:.3}s".format(time.time() - t1))
+        except Exception as e:
+            raise RuntimeError('Build engine failed:', e) from e
 
     def __call__(self, img):
-        
 
-        # img, calib = self.read_img_and_calib(img_file)
-        height, width = 384, 1280
-        self.scale_h, self.scale_w = self.img_h_new / height, self.img_w_new / width
-        
-        # t = time.time()
-        
-        self.infer(img)
-        
-        hm, hps, rot, dim, prob  = [output.reshape(shape) for output, shape in zip(self.out_ptrs, self.shape_of_output)]
-        return hm, hps, rot, dim, prob
-
-    
-    def infer(self, img):
         # NOTE preprocess img
         self.host_mem = img
         self.img_gpu.set_async(self.host_mem, stream=self.stream)
@@ -275,5 +242,9 @@ class RTM3D_Engine(object):
         self.context.execute_async(
             bindings=self.bindings,
             stream_handle=self.stream.handle)
-        # synchronize stream
+
+
         self.stream.synchronize()
+        
+        hm, hps, rot, dim, prob  = [output.reshape(shape) for output, shape in zip(self.out_ptrs, self.shape_of_output)]
+        return hm, hps, rot, dim, prob

@@ -266,14 +266,19 @@ class Debugger(object):
     # dim = points_dim[16:19]
     # points = np.array(points, dtype=np.int32).reshape(self.num_joints, 2)
     # result_dir= "/home/ml4u/RTM3Dv2/kitti_format/exp/results_test"
-    file_number=img_path.split('.')[-2][-6:]
-    box=results[:4]
+    file_number = img_path.split('.')[-2][-6:]
+    box = results[:4]
+    score = results[4] * results[12]
+    dim = results[5:8]
+    pos = results[9:12]
+    ori = results[8]
+    cat = results[13]
 
-    score=results[4]*(1/(1+math.exp(-results[39])))
-    dim=results[32:35]
-    pos=results[36:39]
-    ori=results[35]
-    cat=results[40]
+    # score=results[4]*(1/(1+math.exp(-results[39])))
+    # dim=results[32:35]
+    # pos=results[36:39]
+    # ori=results[35]
+    # cat=results[40]
 
     # print(dim, pos[2])
     if dim[0] <= 0 or dim[1]<=0 or dim[2]<=0 or pos[2] >= 55 or pos[2] <= 0:
@@ -357,6 +362,12 @@ class Debugger(object):
         cv2.circle(self.imgs[img_id], (points[i][j][0] * self.down_ratio,
                                        points[i][j][1] * self.down_ratio),
                    3, (int(c[0]), int(c[1]), int(c[2])), -1)
+
+
+  def show_img(self):
+    cv2.imshow("3D", self.imgs['car_pose'])
+    cv2.waitKey(1)
+
 
   def show_all_imgs(self, pause=False, time=0):
     if not self.ipynb:
@@ -458,11 +469,10 @@ class Debugger(object):
 
 
   def add_3d_detection(self, results, calib, img_id='default',  show_txt=False):
-
-      dim = results[32:35]
-      pos = results[36:39]
-      ori = results[35]
-      cat = int(results[40])
+      dim = results[5:8]
+      pos = results[9:12]
+      ori = results[8]
+      cat = int(results[13])
       pos[1] = pos[1] + dim[0] / 2
       # loc[1] = loc[1] - dim[0] / 2 + dim[0] / 2 / self.dim_scale
           # dim = dim / self.dim_scale

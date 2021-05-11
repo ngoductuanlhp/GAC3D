@@ -121,7 +121,7 @@ def gen_position(kps,dim,rot,const, calib, opinv, ground_plane, pos_y):
     C = torch.zeros_like(kpoint)
 
     kp = kp_norm.unsqueeze(3)  # b,c,16,1
-    const = const.expand(b, c, -1, -1)
+    # const = const.expand(b, c, -1, -1)
     A = torch.cat([const, kp], dim=3)
 
     B[:, :, 0:1] = l * 0.5 * cosori + w * 0.5 * sinori
@@ -184,54 +184,46 @@ def gen_position(kps,dim,rot,const, calib, opinv, ground_plane, pos_y):
 
 
 def car_pose_decode(
-        heat, kps, dim, rot, prob, K=10,meta=None,const=None):
+        heat, hps, rot, dim, prob, K=10, meta=None,const=None):
 
     batch, cat, height, width = heat.size()
-    num_joints = kps.shape[1] // 2
-
+    
     heat = _sigmoid(heat)
     heat = _nms(heat)
 
     scores, inds, clses, ys, xs = _topk(heat, K=K)
-
     clses = clses.view(batch, K, 1).float()
-    kps = _transpose_and_gather_feat(kps, inds)
-    kps = kps.view(batch, K, num_joints * 2)
-    kps[..., ::2] += xs.view(batch, K, 1).expand(batch, K, num_joints)
-    kps[..., 1::2] += ys.view(batch, K, 1).expand(batch, K, num_joints)
-
     scores = scores.view(batch, K, 1)
-
     pos_y = ys.clone().view(batch * K, -1)
 
-    dim = _transpose_and_gather_feat(dim, inds)
-    dim = dim.view(batch, K, 3)
-    # dim[:, :, 0] = torch.exp(dim[:, :, 0]) * 1.63
-    # dim[:, :, 1] = torch.exp(dim[:, :, 1]) * 1.53
-    # dim[:, :, 2] = torch.exp(dim[:, :, 2]) * 3.88
+    kps = _transpose_and_gather_feat(hps, inds)
     rot = _transpose_and_gather_feat(rot, inds)
-    rot = rot.view(batch, K, 8)
-    prob = _transpose_and_gather_feat(prob, inds)[:,:,0]
-    prob = prob.view(batch, K, 1)
+    dim = _transpose_and_gather_feat(dim, inds)
+    prob = _transpose_and_gather_feat(prob, inds)
 
+
+    # kps = features[:,:,0:20]
+    # rot = features[:,:,20:28]
+    # dim = features[:,:,28:31]
+    # prob = features[:,:,31:32]
+
+    kps[..., ::2] += xs.view(batch, K, 1).expand(batch, K, 10)
+    kps[..., 1::2] += ys.view(batch, K, 1).expand(batch, K, 10)
+
+    prob = _sigmoid(prob)
     
-    calib = meta['calib']
+    calib = meta['calib'].unsqueeze(0)
+    opinv = meta['trans_output_inv'].unsqueeze(0).unsqueeze(1).expand(batch, K, -1, -1).contiguous().view(-1, 2, 3).float()
+    ground_plane = meta['ground_plane'].unsqueeze(0).unsqueeze(1).expand(batch, K, -1).contiguous()
 
-    opinv = meta['trans_output_inv']
-    opinv = opinv.expand(batch, K, -1, -1).contiguous().view(-1, 2, 3).float()
-
-    ground_plane = meta['ground_plane']
-    ground_plane = ground_plane.expand(batch, K, -1).contiguous()
-
-    position,rot_y,kps_inv=gen_position(kps,dim,rot,const, calib, opinv, ground_plane, pos_y)
+    position,rot_y,kps_inv = gen_position(kps, dim, rot, const, calib, opinv, ground_plane, pos_y)
 
     kps = kps[:,:,:18]
-
     bboxes_kp=kps.view(kps.size(0),kps.size(1),9,2)
     box_min,_=torch.min(bboxes_kp,dim=2)
     box_max,_=torch.max(bboxes_kp,dim=2)
     bboxes=torch.cat((box_min,box_max),dim=2)
-    hm_score=kps[:,:,0:9]
+    # hm_score=kps[:,:,0:9]
 
     bboxes = bboxes.view(batch, K, -1, 2).permute(0, 1, 3, 2)
     hom = torch.ones(batch, K, 1, 2).cuda()
@@ -239,7 +231,9 @@ def car_pose_decode(
     bboxes = torch.bmm(opinv, bboxes).view(batch, K, 2, 2)
     bboxes = bboxes.permute(0, 1, 3, 2).contiguous().view(batch, K, -1)
 
-    detections = torch.cat([bboxes, scores, kps_inv,hm_score, dim,rot_y,position,prob,clses], dim=2)
-
+    # detections = torch.cat([bboxes, scores, kps_inv,hm_score, dim,rot_y,position,prob,clses], dim=2)
+    detections = torch.cat([bboxes, scores, dim, rot_y, position, prob, clses], dim=2)
+    #   bboxes  scores  dim     rot_y   position    prob    classes
+    #   0:4     4:5     5:8     8:9     9:12        12:13   13:14
 
     return detections

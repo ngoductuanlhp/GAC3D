@@ -5,9 +5,31 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+        self.start_count = 40
+
+    def update(self, val, n=1):
+        self.val = val
+        self.count += n
+        # if self.count < self.start_count:
+        #     return
+
+        self.sum += val * n
+        if self.count > 0:
+          self.avg = self.sum / (self.count)
+
 def _sigmoid(x):
-  y = torch.clamp(x.sigmoid_(), min=1e-4, max=1-1e-4)
-  return y
+    y = torch.clamp(x.sigmoid_(), min=1e-4, max=1-1e-4)
+    return y
 
 def _gather_feat(feat, ind, mask=None):
     dim  = feat.size(2)
@@ -31,20 +53,20 @@ def flip_tensor(x):
     # return torch.from_numpy(tmp).to(x.device)
 
 def flip_lr(x, flip_idx):
-  tmp = x.detach().cpu().numpy()[..., ::-1].copy()
-  shape = tmp.shape
-  for e in flip_idx:
-    tmp[:, e[0], ...], tmp[:, e[1], ...] = \
-      tmp[:, e[1], ...].copy(), tmp[:, e[0], ...].copy()
-  return torch.from_numpy(tmp.reshape(shape)).to(x.device)
+    tmp = x.detach().cpu().numpy()[..., ::-1].copy()
+    shape = tmp.shape
+    for e in flip_idx:
+      tmp[:, e[0], ...], tmp[:, e[1], ...] = \
+        tmp[:, e[1], ...].copy(), tmp[:, e[0], ...].copy()
+    return torch.from_numpy(tmp.reshape(shape)).to(x.device)
 
 def flip_lr_off(x, flip_idx):
-  tmp = x.detach().cpu().numpy()[..., ::-1].copy()
-  shape = tmp.shape
-  tmp = tmp.reshape(tmp.shape[0], 17, 2, 
-                    tmp.shape[2], tmp.shape[3])
-  tmp[:, :, 0, :, :] *= -1
-  for e in flip_idx:
-    tmp[:, e[0], ...], tmp[:, e[1], ...] = \
-      tmp[:, e[1], ...].copy(), tmp[:, e[0], ...].copy()
-  return torch.from_numpy(tmp.reshape(shape)).to(x.device)
+    tmp = x.detach().cpu().numpy()[..., ::-1].copy()
+    shape = tmp.shape
+    tmp = tmp.reshape(tmp.shape[0], 17, 2, 
+                      tmp.shape[2], tmp.shape[3])
+    tmp[:, :, 0, :, :] *= -1
+    for e in flip_idx:
+      tmp[:, e[0], ...], tmp[:, e[1], ...] = \
+        tmp[:, e[1], ...].copy(), tmp[:, e[0], ...].copy()
+    return torch.from_numpy(tmp.reshape(shape)).to(x.device)
