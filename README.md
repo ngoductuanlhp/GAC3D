@@ -1,5 +1,8 @@
 # GAC3D: Improving monocular 3D object detection with ground-guide model and adaptive convolution
 
+<!-- ![Network Architecture](images/architecture.jpg) -->
+<img src="images/architecture.jpg" style="height: 400px" class="center"/>
+
 ## Introduction
 This work proposes a novel approach for 3D object detection by employing a ground plane model that utilizes geometric constraints, named GAC3D. This approach improves the results of the deep-based detector. Furthermore, we introduce a depth adaptive convolution to replace the traditional 2D convolution to deal with the divergent context of the image's feature, leading to a significant improvement in both training convergence and testing accuracy. We demonstrate our approach on the KITTI 3D Object Detection benchmark, which outperforms existing monocular methods.
 
@@ -38,6 +41,9 @@ GAC3D
 Please refer to [GETTING_STARTED.md](readme/GETTING_STARTED.md) to learn more usage about this project.
 
 ## NVidia Jetson deployment
+
+<img src="images/jetson_xaviernx.jpg" style="height: 300px" class="center"/>
+
 We deployed and tested our framework on NVidia Jetson XavierNX with Jetpack 4.5.1. Please follow these steps below to run the framework on Jetson board:
 
 * Install packages on Jetson: [INSTALL_JETSON.md](readme/INSTALL_JETSON.md)
