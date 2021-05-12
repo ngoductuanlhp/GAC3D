@@ -16,8 +16,6 @@ from engine import Engine
 from images import get_affine_transform
 from decode import car_pose_decode
 
-from ddd_utils import compute_box_3d
-import vis_3d_utils as vis_utils
 
 def gen_ground(P2, h, w, P0 = None):
     baseline = 0.54
@@ -106,7 +104,7 @@ class JetsonDetector(object):
         engine_time = time.time()
         dets = car_pose_decode(hm, hps, rot, dim, prob, K=self.max_obj, meta=meta, const=self.const)
         decode_time = time.time()
-        # NOTE post process
+        # NOTE fetch from GPU to CPU
         dets = dets.squeeze(0).detach().cpu().numpy()
 
         engine_interval = engine_time - start_time
@@ -114,11 +112,11 @@ class JetsonDetector(object):
         return dets, engine_interval, decode_interval
 
     def preprocess_simple(self, img):
-        img = cv2.warpAffine(img, self.trans_input, (1280,384), flags=cv2.INTER_LINEAR)
-        img = img.astype(np.float32)
-        img = np.transpose(img, [2, 0, 1])
-        img = np.ascontiguousarray(img)
-        img = np.ravel(img)
+        # img = cv2.warpAffine(img, self.trans_input, (1280,384), flags=cv2.INTER_LINEAR)
+        # img = img.astype(np.float32)
+        # img = np.transpose(img, [2, 0, 1])
+        # img = np.ascontiguousarray(img)
+        # img = np.ravel(img)
         return img
 
     def preprocess(self, img, calib):

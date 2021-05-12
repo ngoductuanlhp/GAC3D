@@ -15,10 +15,10 @@ from utils import AverageMeter
 
 def main():
     parser = argparse.ArgumentParser()
-    #parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_gac_base_int8.trt',
-    #                             help='path to pretrained model')
-    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
+    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_gac_base_200.trt',
                                  help='path to pretrained model')
+    #parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
+    #                             help='path to pretrained model')
     parser.add_argument('--data_dir', default='./kitti_format/data/kitti',
                                  help='path to dataset')
     parser.add_argument('--dcn_lib', default='/home/ml4u/GAC3D/trt_src/onnx-tensorrt/plugin/build/libDCN.so',
@@ -63,41 +63,40 @@ def main():
     eventStop = threading.Event()
     eventStop.clear()
     readIOThread = ReadIOThread(args, files, io_queue, eventStop, detector.trans_input)
-    readIOThread.start()
+    # readIOThread.start()
     
     # NOTE display_thread
     display_queue = queue.Queue(maxsize=1)
     displayThread = DisplayThread(display_queue, args)
-    displayThread.start()
+    # displayThread.start()
 
     idx = 0
-    while not eventStop.is_set():
+    for f in files:
+        img_name = f.split('.')[0]
         start_time = time.time()
+        img, processed_img, calib = readIOThread.read_io(img_name)
+        read_time = time.time()
+        dets, engine_interval, decode_interval = detector.run(processed_img, calib)
         
-        # NOTE get input from io_thread
-        inputs = io_queue.get(block=True)
-        p_img, calib, read_interval = inputs['p_img'], inputs['calib'], inputs['read']
-        
-        # NOTE run detection
-        dets, engine_interval, decode_interval = detector.run(p_img, calib)
+        processed_dets = displayThread.postprocess(dets)
         end_time = time.time()
 
         time_dict = {
             'total': end_time - start_time,
             'engine': engine_interval,
             'decode': decode_interval,
-            'read': read_interval
+            'read': read_time - start_time
         }
 
         if args.video:
             calib = detector.calib_np
 
-        outputs = {'dets': dets, 'calib': calib}
-        if args.vis:
-            outputs['img'] = inputs['img']
-        if args.save:
-            outputs['file'] = inputs['file']
-        display_queue.put(outputs, block=True)
+        # outputs = {'dets': dets, 'calib': calib}
+        # if args.vis:
+        #     outputs['img'] = inputs['img']
+        # if args.save:
+        #     outputs['file'] = inputs['file']
+        # display_queue.put(outputs, block=True)
 
         if idx < 40:
             Bar.suffix = 'Skip first 40 iterations.'
@@ -114,29 +113,6 @@ def main():
     for t, meter in time_meter.items():
         print('\t{}: {:.4f} ms'.format(t, meter.avg))
     bar.finish()
-
-    if args.vis:
-        displayThread.stop()
-
-    # eng_time_arr = np.array(eng_time_arr)
-    # decode_time_arr = np.array(decode_time_arr)
-    # total_time_arr = np.array(total_time_arr)
-    
-    # # total:
-    # mean_val = np.mean(total_time_arr)
-    # median_val = np.median(total_time_arr)
-    # std = np.std(total_time_arr)
-    # print("Total time: Mean: {:.3}s| Median: {:.3}s| Std: {:.3}s| Max: {:.3}s| Min: {:.3}s".format(mean_val, median_val, std, np.max(total_time_arr), np.min(total_time_arr)))
-
-    # mean_val = np.mean(eng_time_arr)
-    # median_val = np.median(eng_time_arr)
-    # std = np.std(eng_time_arr)
-    # print("Engine time: Mean: {:.3}s| Median: {:.3}s| Std: {:.3}s| Max: {:.3}s| Min: {:.3}s".format(mean_val, median_val, std, np.max(eng_time_arr), np.min(eng_time_arr)))
-
-    # mean_val = np.mean(decode_time_arr)
-    # median_val = np.median(decode_time_arr)
-    # std = np.std(decode_time_arr)
-    # print("Decode time: Mean: {:.3}s| Median: {:.3}s| Std: {:.3}s| Max: {:.3}s| Min: {:.3}s".format(mean_val, median_val, std, np.max(decode_time_arr), np.min(decode_time_arr)))
 
 
 if __name__ == "__main__":
