@@ -9,13 +9,16 @@ import cv2
 import queue
 
 from debugger import Debugger
-from jetson_detector import JetsonDetector, ReadIOThread, DisplayThread
+from jetson_detector import JetsonDetector
+from utils_thread import ReadIOThread, DisplayThread
 
 from utils import AverageMeter
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_gac_base_200.trt',
+    # parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_gac_base_200.trt',
+    #                              help='path to pretrained model')
+    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
                                  help='path to pretrained model')
     parser.add_argument('--data_dir', default='./kitti_format/data/kitti',
                                  help='path to dataset')
@@ -27,6 +30,8 @@ def main():
                                  help='result dir')
     parser.add_argument('--video', action='store_true',
                                  help='infer on sequence')
+    parser.add_argument('--vis', action='store_true',
+                                 help='visualize outputs')
     args = parser.parse_args()
 
     if os.path.exists(args.result_dir):
@@ -50,31 +55,38 @@ def main():
 
     bar = Bar('3D detection', max=total_iter)
 
-
-    input_queue = queue.Queue(maxsize=1)
-    eventStop = threading.Event()
-    eventStop.clear()
+    # NOTE detector
     detector = JetsonDetector(args)
-    readIOThread = ReadIOThread(args, files, input_queue, eventStop)
+
+    # NOTE debugger
     debugger = Debugger(dataset='kitti_hp', ipynb=False, theme='white')
 
-    display_queue = queue.Queue(maxsize=1)
-    displayThread = DisplayThread(display_queue)
-    
+    # NOTE io_thread
+    io_queue = queue.Queue(maxsize=1)
+    eventStop = threading.Event()
+    eventStop.clear()
+    readIOThread = ReadIOThread(args, files, io_queue, eventStop)
     readIOThread.start()
-    displayThread.start()
+    
+    # NOTE display_thread
+    if args.vis:
+        display_queue = queue.Queue(maxsize=1)
+        displayThread = DisplayThread(display_queue)
+        displayThread.start()
+
 
     idx = 0
     while not eventStop.is_set():
         start_time = time.time()
         
-        # NOTE run model
-        inputs = input_queue.get(block=True)
+        # NOTE get input from io_thread
+        inputs = io_queue.get(block=True)
         img, calib, read_interval, f = inputs['image'], inputs['calib'], inputs['read'], inputs['file']
-        # print(img.shape)
-        # print('\n[Main thread] Receive image:', f)
+        
+        # NOTE run detection
         dets, engine_interval, decode_interval = detector.run(img, calib)
         end_time = time.time()
+
         time_dict = {
             'total': end_time - start_time,
             'engine': engine_interval,
@@ -82,14 +94,11 @@ def main():
             'read': read_interval
         }
 
-
-        # img_copy = img.copy()
-        # img_copy = cv2.warpAffine(img, detector.trans_input, (1280,320), flags=cv2.INTER_LINEAR)
-        # debugger.add_img(img_copy, img_id='car_pose')
         if args.video:
             calib = detector.calib_np
-        
-        display_queue.put({'dets': dets, 'calib': calib, 'img': img}, block=True)
+
+        if args.vis:
+            display_queue.put({'dets': dets, 'calib': calib, 'img': img}, block=True)
 
         # for bbox in dets:
         #     if bbox[4] > 0.3:
@@ -116,7 +125,9 @@ def main():
     for t, meter in time_meter.items():
         print('\t{}: {:.4f} ms'.format(t, meter.avg))
     bar.finish()
-    displayThread.stop()
+
+    if args.vis:
+        displayThread.stop()
 
         
         # total_interval = time_dict['total']

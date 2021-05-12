@@ -8,7 +8,8 @@ The structure of this repo is as follows:
 GAC3D
 ├── kitti_format # for training and evaluating on trainval set
 ├── kitti_test # for testing on official test set
-├── src # source code
+├── src # source code for implementing the framework
+├── trt_src # source code for deploying the framework on NVidia Jetson board
 ├── readme # readme files
 ```
 
@@ -29,13 +30,19 @@ GAC3D
 |   |   |   ├── train.txt val.txt trainval.txt
 ```
 
-## Getting Started
-### Installation
+## Installation
 * For training and testing on mainframe computer: [INSTALL.md](readme/INSTALL.md)
 * For testing on embedded device (we use NVidia Jetson Xavier NX): [INSTALL_JETSON.md](readme/INSTALL_JETSON.md)
 
-### Demo
+## Demo
 Please refer to [GETTING_STARTED.md](readme/GETTING_STARTED.md) to learn more usage about this project.
+
+## NVidia Jetson deployment
+We deployed and tested our framework on NVidia Jetson XavierNX with Jetpack 4.5.1. Please follow these steps below to run the framework on Jetson board:
+
+* Install packages on Jetson: [INSTALL_JETSON.md](readme/INSTALL_JETSON.md)
+* Build TensorRT src and additional plugins: [BUILD_TENSORRT.md](readme/BUILD_TENSORRT.md)
+* Infer model on Jetson: [DEMO_JETSON.md](readme/DEMO_JETSON.md)
 
 ## Acknowledgement
 Portions of the code are borrowed from:

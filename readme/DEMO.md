@@ -1,25 +1,31 @@
-Here we provide a quick demo to test a pretrained model on the custom data and visualize the predicted results.
+## Training
+Run following command to train model with DLA-34 backbone:
 
-We suppose you already followed the [INSTALL.md](INSTALL.md) to install the KM3D repo successfully.
+   ```bash
+   python3 ./src/main.py --data_dir ./kitti_format --exp_id XXX --arch dladgpac_34 --batch_size 8 --gpus 0 --num_epochs 200 --start_epoch 0 --lr 1.25e-4 --not_rand_crop --load_model XXX
+   ```
+   
+## Results generation
+Run following command for results generation:
+   * *Val* set:
+   ```bash
+   python3 ./src/infer.py --demo ./kitti_format/data/kitti/val.txt --data_dir ./kitti_format --calib_dir ./kitti_format/data/kitti/calib/ --load_model ./kitti_format/pretrained/2d3d_noaug_lr_trainval_last.pth --gpus 0 --arch dladepthconv_34
+   ```
 
-1. Download the provided pretrained models as shown in the [README.md](../README.md), and put set pretrained models in ./demo_kitti_format/exp/KM3D/
-2. Run the KM3D with a pretrained model (e.g. ResNet-18train.pth) and kitti camera data as follows:
-    ~~~
-        cd km3d
-        python ./src/faster.py --vis --demo ./demo_kitti_format/data/kitti/image --calib_dir ./demo_kitti_format/data/kitti/calib/ --load_model ./demo_kitti_format/exp/KM3D/pretrained.pth --gpus 0 --arch res_18
-    ~~~
-3. Run the RTM3D(GRM) with a pretrained model (e.g. ResNet-18train.pth) and kitti camera data as follows:
-    ~~~
-        cd km3d
-        python ./src/demo.py --vis --demo ./demo_kitti_format/data/kitti/image --calib_dir ./demo_kitti_format/data/kitti/calib/ --load_model ./demo_kitti_format/exp/KM3D/pretrained.pth --gpus 0 --arch res_18
-    ~~~
-4. Run the KM3D with a pretrained model (e.g. ResNet-18train.pth) and custom camera data as follows:
-    ~~~
-        cd km3d
-        python ./src/demo.py --vis --demo ~/your image folder --calib_dir ~/your calib folder/ --load_model ~/pretrained.pth --gpus 0 --arch res_18 or dla_34
-    ~~~
-5. Run the RTM3D(GRM) with a pretrained model (e.g. ResNet-18train.pth) and custom camera data as follows:
-    ~~~
-        cd km3d
-        python ./src/demo.py --vis --demo ~/your image folder --calib_dir ~/your calib folder/ --load_model ~/pretrained.pth --gpus 0 --arch res_18 or dla_34
-    ~~~
+   * *Test* set:
+   ```bash
+   python3 ./src/infer.py --demo ./kitti_test/data/kitti/test.txt --data_dir ./kitti_test --calib_dir ./kitti_test/data/kitti/calib/ --load_model ./kitti_format/pretrained/2d3d_noaug_lr_trainval_last.pth --gpus 0 --arch dladepthconv_34
+   ```
+
+## Evaluation
+Run following command for evaluation:
+   * single class (Car)
+   ```bash
+   python ./src/tools/kitti-object-eval-python/evaluate.py evaluate --label_path=./kitti_format/data/kitti/label/ --label_split_file ./kitti_format/data/kitti/val.txt --current_class=0 --coco=False --result_path=./kitti_format/exp/results/data/
+   ```
+
+   * multi classes
+   ```bash
+   python ./src/tools/kitti-object-eval-python/evaluate.py evaluate --label_path=./kitti_format/data/kitti/label/ --label_split_file ./kitti_format/data/kitti/val.txt --current_class=0,1,2 --coco=False --result_path=./kitti_format/exp/results/data/
+   ```
+

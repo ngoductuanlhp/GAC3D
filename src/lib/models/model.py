@@ -13,8 +13,8 @@ from .networks.pose_dla_dcn import get_pose_net as get_dla_dcn
 
 from .networks.dla_dcn_pac import get_pose_net as get_dlapac
 from .networks.dla_dcn_pac_noconv import get_pose_net as get_dlapac_noconv
-from .networks.dla_dcn_pac_fake import get_pose_net as get_dlapac_fake
-from .networks.resnet_pac_fake import get_pose_net as get_resnet_fake
+from .networks.dla_dcn_pac_js import get_pose_net as get_dlapac_js
+from .networks.resnet_pac_js import get_pose_net as get_resnet_js
 
 
 
@@ -24,8 +24,8 @@ _model_factory = {
   'dla': get_dla_dcn,
   'dlapac': get_dlapac,
   'dlapacnc': get_dlapac_noconv,
-  'dlafake': get_dlapac_fake,
-  'resfake': get_resnet_fake,
+  'dlajs': get_dlapac_js,
+  'resjs': get_resnet_js,
 }
 
 def create_model(arch, heads, head_conv):
