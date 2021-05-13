@@ -8,10 +8,9 @@ import cv2
 # import multiprocessing
 import queue
 
-from debugger import Debugger
 from jetson_detector import JetsonDetector
 from utils_thread import ReadIOThread, DisplayThread
-
+from utils_thread import save_kitti_format
 from utils import AverageMeter
 
 def main():
@@ -39,7 +38,6 @@ def main():
     if not os.path.exists(args.result_dir):
         os.makedirs(args.result_dir)
 
-    
     if args.video:
         path = os.path.join(args.data_dir, 'sequences',args.demo,'image')
         files = sorted(os.listdir(path))
@@ -57,9 +55,6 @@ def main():
 
     # NOTE detector
     detector = JetsonDetector(args)
-
-    # NOTE debugger
-    debugger = Debugger(dataset='kitti_hp', ipynb=False, theme='white')
 
     # NOTE io_thread
     io_queue = queue.Queue(maxsize=1)
@@ -100,15 +95,8 @@ def main():
         if args.vis:
             display_queue.put({'dets': dets, 'calib': calib, 'img': img}, block=True)
 
-        # for bbox in dets:
-        #     if bbox[4] > 0.3:
-        #         # debugger.add_coco_bbox(bbox[:4], bbox[40], bbox[4], img_id='car_pose')
-        #         # debugger.add_kitti_hp(bbox[5:23], img_id='car_pose')
-        #         # debugger.add_bev(bbox, img_id='car_pose',is_faster=True)
-        #         # calib_np = calib.cpu().numpy().squeeze(0)
-        #         debugger.add_3d_detection(bbox, calib, img_id='car_pose')
-        #         # debugger.save_kitti_format(bbox,f,result_dir=args.result_dir)
-        # debugger.show_img()
+        for bbox in dets:
+            save_kitti_format(bbox,f,result_dir=args.result_dir)
 
         if idx < 40:
             Bar.suffix = 'Skip first 40 iterations.'
@@ -128,17 +116,6 @@ def main():
 
     if args.vis:
         displayThread.stop()
-
-        
-        # total_interval = time_dict['total']
-        # eng_interval = time_dict['engine']
-        # decode_interval = time_dict['decode']
-    #     print("Total: {:.3}s| Engine: {:.3}s| Decode: {:.3}s".format(total_interval, eng_interval, decode_interval))
-    #     if start_idx > start_count:
-    #         eng_time_arr.append(eng_interval)
-    #         decode_time_arr.append(decode_interval)
-    #         total_time_arr.append(total_interval)
-    #     start_idx += 1
 
     # eng_time_arr = np.array(eng_time_arr)
     # decode_time_arr = np.array(decode_time_arr)

@@ -26,9 +26,12 @@ GAC3D
 ├── kitti_format
 │   ├─ data
 │   │   ├── kitti
-│   │   |   ├── annotations 
+│   │   |   ├── annotations
+│   │   │   |   ├── kitti_train.json
+│   │   │   |   ├── kitti_val.json
+│   │   │   |   ├── kitti_trainval.json
 │   │   │   ├── calib /000000.txt .....
-│   │   │   ├── image(left[0-7480] right[7481-14961])
+│   │   │   ├── image(left[0-7480] right[7481-14961]) /000000.png .....
 │   │   │   ├── label /000000.txt .....
 |   |   |   ├── train.txt val.txt trainval.txt
 ```
@@ -42,7 +45,7 @@ Please refer to [GETTING_STARTED.md](readme/GETTING_STARTED.md) to learn more us
 
 ## NVidia Jetson deployment
 
-<img src="images/jetson_xaviernx.jpg" style="height: 300px" class="center"/>
+<img src="images/jetson_xaviernx.jpg" style="height: 200px" class="center"/>
 
 We deployed and tested our framework on NVidia Jetson XavierNX with Jetpack 4.5.1. Please follow these steps below to run the framework on Jetson board:
 

@@ -3,11 +3,79 @@ import cv2
 import numpy as np
 import time
 import threading
-import vis_3d_utils as vis_utils
+import math
 from utils import compute_box_3d, project_to_image
 
 COLOR_LIST = [(0,255,0), (0,255,255), (255,0,255)]
 FONT = cv2.FONT_HERSHEY_SIMPLEX
+DETECTION_CATE = ['Car', 'Pedestrian', 'Cyclist']
+
+def filter_det(cat, dim, pos, score_2d, score_3d):
+    if cat == 0 and (dim[0] > 3 or dim[1] > 3 or dim[2] > 7 or dim[0] < 1.2 or dim[1] < 1.2 or dim[2] < 2):
+        return True
+    if dim[0] <= 0 or dim[1]<=0 or dim[2]<=0 or pos[2] >= 55 or pos[2] <= 0:
+        return True
+    if score_2d < 0.3 or score_3d < 0.3:
+        return True
+    return False
+
+def save_kitti_format(results, img_path, result_dir):
+    file_number = img_path.split('.')[-2][-6:]
+    box = results[:4]
+    score_2d = results[4]
+    score_3d = results[12]
+    score = score_2d * score_3d
+    dim = results[5:8]
+    pos = results[9:12]
+    ori = results[8]
+    cat = int(results[13])
+
+    if filter_det(cat, dim, pos, score_2d, score_3d):
+        return 
+    
+    write_detection_results(DETECTION_CATE[cat],result_dir,file_number,box,dim,pos,ori,score)
+  
+def write_detection_results(cls, result_dir, file_number, box,dim,pos,ori,score):
+    '''One by one write detection results to KITTI format label files.
+    '''
+    if result_dir is None: return
+
+    Px = pos[0]
+    Py = pos[1]
+    Pz = pos[2]
+    l =dim[2]
+    h = dim[0]
+    w = dim[1]
+    Py=Py+h/2
+    pi=np.pi
+    if ori > 2 * pi:
+        while ori > 2 * pi:
+            ori -= 2 * pi
+    if ori < -2 * pi:
+        while ori < -2 * pi:
+            ori += 2 * pi
+
+    if ori > pi:
+        ori = 2 * pi - ori
+    if ori < -pi:
+        ori = 2 * pi + pi
+
+    alpha = ori - math.atan2(Px, Pz)
+    # convert the object from cam2 to the cam0 frame
+
+    output_str = cls + ' '
+    output_str += '%.2f %.d ' % (-1, -1)
+    output_str += '%.7f %.7f %.7f %.7f %.7f ' % (alpha, box[0], box[1], box[2], box[3])
+    output_str += '%.7f %.7f %.7f %.7f %.7f %.7f %.7f %.7f \n' % (h, w, l, Px, Py, \
+                                                                Pz, ori, score)
+    # output_str += '%.2f %.2f %.2f %.2f %.2f ' % (alpha, box[0], box[1], box[2], box[3])
+    # output_str += '%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n' % (h, w, l, Px, Py, \
+    #                                                               Pz, ori, score)
+
+    # Write TXT files
+    pred_filename = result_dir + '/' + file_number + '.txt'
+    with open(pred_filename, 'a') as det_file:
+        det_file.write(output_str)
 
 class DisplayThread(threading.Thread):
     def __init__(self, queue, scale = 1):
@@ -20,15 +88,6 @@ class DisplayThread(threading.Thread):
 
         # fourcc = cv2.VideoWriter_fourcc(*'XVID')
         # self.out_video = cv2.VideoWriter('dla34_test1.avi', fourcc, 10.0, (1280,340))
-
-    def filter_det(self, cat, dim, pos, score_2d, score_3d):
-        if cat == 0 and (dim[0] > 3 or dim[1] > 3 or dim[2] > 7 or dim[0] < 1.2 or dim[1] < 1.2 or dim[2] < 2):
-            return True
-        if dim[0] <= 0 or dim[1]<=0 or dim[2]<=0 or pos[2] >= 55 or pos[2] <= 0:
-            return True
-        if score_2d < 0.3 or score_3d < 0.3:
-            return True
-        return False
 
     def run(self):
         time_fps = time.time()
@@ -44,7 +103,7 @@ class DisplayThread(threading.Thread):
                 new_w, new_h = self.img.shape[1] // self.scale, self.img.shape[0] // self.scale
                 self.img = cv2.resize(self.img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
-            self.im_bev = vis_utils.vis_create_bev(width=self.img.shape[0] * 2)
+            # self.im_bev = vis_utils.vis_create_bev(width=self.img.shape[0] * 2)
 
             for det in dets:
                 dim = det[5:8]
@@ -54,7 +113,7 @@ class DisplayThread(threading.Thread):
                 score_2d = det[4]
                 score_3d = det[12]
                 
-                if self.filter_det(cat, dim, pos, score_2d, score_3d):
+                if filter_det(cat, dim, pos, score_2d, score_3d):
                     continue
                     
                 pos[1] = pos[1] + dim[0] / 2
