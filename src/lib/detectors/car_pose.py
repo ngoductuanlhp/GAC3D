@@ -21,6 +21,8 @@ from utils.post_process import multi_pose_post_process
 from utils.post_process import car_pose_post_process
 from utils.debugger import Debugger
 
+from models.model import save_model
+
 from .base_detector import BaseDetector
 
 from torch.onnx import OperatorExportTypes
@@ -52,22 +54,27 @@ class CarPoseDetector(BaseDetector):
 
                 print("Export ONNX successful. Model is saved at", onnx_path)
             quit()
-
+        start_time = time.time()
         with torch.no_grad():
-            if self.not_depth_guide or self.backbonea_arch == 'dla':
-                output = self.model(images)[-1]
-            else:
-                output = self.model(images, depths)[-1]
+            # if self.not_depth_guide or self.backbonea_arch == 'dla':
+            #     output = self.model(images)[-1]
+            # else:
+            #     output = self.model(images, depths)[-1]
             # output = self.model(images)[-1]
-            output['hm'] = output['hm'].sigmoid_()
+            output = self.model(images)
+            torch.cuda.synchronize()
+            engine_time = time.time()
 
+            output['hm'] = output['hm'].sigmoid_()
+            output['reg'] = None
+            output['wh'] = None
             dets = car_pose_decode(
                 output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],
                 reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const,
                 dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle, not_joint_task=self.opt.not_joint_task)
 
         if return_time:
-            return output, dets, 0
+            return output, dets, engine_time - start_time
         else:
             return output, dets
 

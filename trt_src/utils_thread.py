@@ -11,11 +11,11 @@ FONT = cv2.FONT_HERSHEY_SIMPLEX
 DETECTION_CATE = ['Car', 'Pedestrian', 'Cyclist']
 
 def filter_det(cat, dim, pos, score_2d, score_3d):
-    if cat == 0 and (dim[0] > 3 or dim[1] > 3 or dim[2] > 7 or dim[0] < 1.2 or dim[1] < 1.2 or dim[2] < 2):
-        return True
+    # if cat == 0 and (dim[0] > 3 or dim[1] > 3 or dim[2] > 7 or dim[0] < 1.2 or dim[1] < 1.2 or dim[2] < 2):
+    #     return True
     if dim[0] <= 0 or dim[1]<=0 or dim[2]<=0 or pos[2] >= 55 or pos[2] <= 0:
         return True
-    if score_2d < 0.3 or score_3d < 0.3:
+    if score_2d < 0.3:
         return True
     return False
 
@@ -103,7 +103,7 @@ class DisplayThread(threading.Thread):
         # cat = int(det[13])
         # score_2d = det[4]
         # score_3d = det[12]
-        conditions = np.concatenate((dets[:, 5:8] > 0, dets[:, [4,12]] > 0.3), axis=1)
+        conditions = np.concatenate((dets[:, 5:8] > 0, dets[:, [4]] > 0.3), axis=1)
         valid = np.bitwise_and.reduce(conditions, axis=1)
         # valid1 = np.bitwise_and.reduce((dets[:, 5:8] > 0), axis=1)
         # valid2 = np.bitwise_and.reduce((dets[:, [4,12]] > 0.3), axis=1)
@@ -123,14 +123,15 @@ class DisplayThread(threading.Thread):
             calib = inputs['calib']
             
             # NOTE post process
-            processed_dets = self.postprocess(dets)
+            processed_dets = dets
+            # processed_dets = self.postprocess(dets)
             end_time = time.time()
             # print('\nPost time: {:.4f}'.format(end_time - start_time))
 
             # NOTE save results
             if self.args.save:
                 for det in processed_dets:
-                    save_kitti_format(det, f=inputs['file'], result_dir=self.args.result_dir)
+                    save_kitti_format(det, inputs['file'], result_dir=self.args.result_dir)
 
             if self.args.vis:
                 self.img = inputs['img']
@@ -229,7 +230,7 @@ class ReadIOThread(threading.Thread):
             read_time = time.time()
             
             outputs = {'p_img': processed_img, 'calib': calib, 'read': read_time - start_time, 'file': f}
-            if self.args.vis:
+            if self.args.vis or not self.args.video:
                 outputs['img'] = img
             self.queue.put(outputs, block=True)
 
@@ -241,7 +242,9 @@ class ReadIOThread(threading.Thread):
         img_path = os.path.join(self.img_dir, img_name + '.png')
         img = cv2.imread(img_path)
 
-        processed_img = self.preprocess_img(img)
+        processed_img = None
+        if self.video:
+            processed_img = self.preprocess_img(img)
         
         # NOTE Read calib
         if self.video:

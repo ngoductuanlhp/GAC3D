@@ -28,7 +28,7 @@
     ```
 
     ```bash
-    ./build/onnx2trt /home/ml4u/RTM3D_weights/model_res18_3.onnx -d 8 -o /home/ml4u/RTM3D_weights/model_res18_3.trt -c /home/ml4u/RTM3Dv2/kitti_format/data/kitti/calib_int8_2.txt -b 1
+    ./build/onnx2trt /home/ml4u/RTM3D_weights/res18_gac_base_200.onnx -d 8 -o /home/ml4u/RTM3D_weights/res18_gac_base_int8.trt -c /home/ml4u/RTM3Dv2/kitti_format/data/kitti/calib_jetson.txt -b 1
     ```
 
     or 

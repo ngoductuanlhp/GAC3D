@@ -509,6 +509,7 @@ class DLASeg(nn.Module):
             z[head] = self.__getattr__(head)(y[-1])  
 
         # features = torch.cat((z['hps'], z['rot'], z['dim'], z['prob']), dim=1)                                                                                                
+        # return z
         return z['hm'], z['hps'], z['rot'], z['dim'], z['prob']
 
 

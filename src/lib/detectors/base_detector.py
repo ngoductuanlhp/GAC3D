@@ -150,6 +150,7 @@ class BaseDetector(object):
         if self.opt.debug >= 1:
             self.show_results(debugger, image, dets, calib_numpy)
 
-        return {'results': dets, 'tot': tot_time, 'load': load_time,
-                'pre': pre_time, 'net': net_time, 'dec': dec_time,
-                'post': post_time, 'merge': merge_time}
+        return dets, forward_time
+        # return {'results': dets, 'tot': tot_time, 'load': load_time,
+        #         'pre': pre_time, 'net': net_time, 'dec': dec_time,
+        #         'post': post_time, 'merge': merge_time}

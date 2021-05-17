@@ -1,0 +1,211 @@
+TRT-7103-EntropyCalibration
+input: 3c9cdc9c
+411: 3dc36f4e
+414: 3e284eaf
+417: 3dd45cf0
+418: 3e038f70
+423: 3d41c11b
+730: 3d83c4b2
+427: 3d3e4988
+430: 3cc97475
+434: 3d37b4f1
+438: 3cde083d
+439: 3cde083d
+440: 3cde083d
+445: 3c66cdf9
+748: 3c8a0b32
+449: 3cb08e71
+452: 3c478125
+456: 3cb06c12
+460: 3c393955
+463: 3c0377cb
+467: 3c3407f5
+470: 3c0de8b3
+474: 3c83c4b3
+478: 3c78df5c
+479: 3c8c6661
+480: 3c8c6661
+485: 3c22c7e6
+781: 3c769c8b
+489: 3c87fe35
+492: 3c26197a
+496: 3cc6907c
+500: 3c52f898
+503: 3bc89030
+507: 3c89d6da
+510: 3bd57ff5
+514: 3c6c19c7
+518: 3c5227c9
+519: 3c5b11cf
+524: 3c792f8f
+814: 3c9ffd1e
+528: 3ca4d89f
+531: 3cb76934
+535: 3cc4c4a6
+539: 3d6ad129
+540: 3e45d27f
+541: 3e08e251
+542: 3e52b3d1
+543: 3deeaf89
+545: 3c020c5e
+(Unnamed Layer* 100) [Constant]_output: 3ae68164
+(Unnamed Layer* 101) [Constant]_output: 38478f6a
+546: 3e29f37d
+548: 3cdb7da7
+549: 3cabe8e9
+550: 3cba7f7d
+551: 3e495add
+552: 3e48ce17
+553: 3e3a9bed
+554: 3d74faa6
+556: 3c00bfd5
+(Unnamed Layer* 113) [Constant]_output: 3aedef8d
+(Unnamed Layer* 114) [Constant]_output: 391e08d2
+557: 3d8619e5
+559: 3d2f8eb1
+560: 3cb80180
+561: 3c8fb361
+562: 3cb82c7c
+563: 3cc0f2e6
+565: 3bb6efb3
+(Unnamed Layer* 124) [Constant]_output: 3acb7631
+(Unnamed Layer* 125) [Constant]_output: 3a399ca0
+566: 3bb303f1
+568: 3d097d0d
+569: 3ca320ab
+570: 3ccd026b
+571: 3e6c7c4c
+572: 3d4a7146
+573: 3d628ffc
+574: 3e824561
+576: 3c010a14
+(Unnamed Layer* 137) [Constant]_output: 3ab96bdf
+(Unnamed Layer* 138) [Constant]_output: 39fb2eb2
+577: 3d128265
+579: 3d05903e
+581: 3e417791
+582: 3e9709df
+583: 3e122a44
+585: 3c021427
+(Unnamed Layer* 148) [Constant]_output: 3b1a908a
+(Unnamed Layer* 149) [Constant]_output: 38fc7bd7
+586: 3e0d0953
+588: 3d371a2c
+589: 3d01bd2a
+590: 3d2cb16f
+591: 3df6cdf5
+592: 3dd51fa2
+593: 3de930fc
+594: 3dbca284
+596: 3c0212c3
+(Unnamed Layer* 161) [Constant]_output: 3adb8f7a
+(Unnamed Layer* 162) [Constant]_output: 399c122b
+597: 3d595bc5
+599: 3d3f67c6
+600: 3cb08c29
+601: 3c74c006
+602: 3cc1b9fb
+603: 3cb649f4
+605: 3bb29822
+(Unnamed Layer* 172) [Constant]_output: 3aae08dc
+(Unnamed Layer* 173) [Constant]_output: 3a1202a7
+606: 3bbeae67
+608: 3cfd8c44
+609: 3c78ecdf
+610: 3ccb1e1c
+611: 3cfe93f4
+612: 3c9c5ffb
+613: 3cfee536
+614: 3ce5f011
+616: 3bf9c041
+(Unnamed Layer* 185) [Constant]_output: 3ac1c615
+(Unnamed Layer* 186) [Constant]_output: 3a0c263c
+617: 3cc4f1d4
+619: 3d209d1d
+620: 3d926ff8
+621: 3d95ec32
+622: 3d608fb0
+623: 3d82425b
+625: 3c0178e5
+(Unnamed Layer* 196) [Constant]_output: 3ab93f70
+(Unnamed Layer* 197) [Constant]_output: 392727db
+626: 3d06bf0c
+628: 3d00fb68
+629: 3cae8ef7
+630: 3d1c8e90
+631: 3d83e1ed
+632: 3d7b0b20
+633: 3d937141
+634: 3d67d9a9
+636: 3c00f158
+(Unnamed Layer* 209) [Constant]_output: 3aada877
+(Unnamed Layer* 210) [Constant]_output: 3a1c4f10
+637: 3d06d8e6
+639: 3d0f7f9a
+641: 3dfc080b
+642: 3de96ae9
+643: 3d8147cd
+645: 3c006ff8
+(Unnamed Layer* 220) [Constant]_output: 3afbe7d6
+(Unnamed Layer* 221) [Constant]_output: 39effd5a
+646: 3d158d76
+648: 3d2411c6
+649: 3d042fc5
+650: 3d152408
+651: 3d9b948d
+652: 3d643f7b
+653: 3dc07481
+654: 3d6e1ed0
+656: 3c00688a
+(Unnamed Layer* 233) [Constant]_output: 3ad91fd9
+(Unnamed Layer* 234) [Constant]_output: 39d40f9a
+657: 3d4e565e
+659: 3d128019
+661: 3d8d786e
+662: 3d95885c
+663: 3d8c52dc
+665: 3c00e153
+(Unnamed Layer* 244) [Constant]_output: 3ae83b20
+(Unnamed Layer* 245) [Constant]_output: 397180af
+666: 3d3489ff
+668: 3d44c71d
+669: 3d0aa3a0
+670: 3d51bbb4
+671: 3db4c072
+672: 3d88d19b
+673: 3d93c220
+674: 3dbba222
+676: 3c010f1d
+(Unnamed Layer* 257) [Constant]_output: 3b0609e8
+(Unnamed Layer* 258) [Constant]_output: 39f4cd07
+677: 3db86339
+679: 3d2bf6d6
+681: 3e51e176
+682: 3e833f86
+683: 3dec0dc1
+685: 3c011209
+(Unnamed Layer* 268) [Constant]_output: 3b1a3885
+(Unnamed Layer* 269) [Constant]_output: 390f830a
+686: 3e8a03d0
+688: 3d3f395e
+689: 3d226aed
+690: 3d7abffd
+691: 3dcecf03
+692: 3d6f4579
+693: 3d7a86bb
+694: 3dd18b41
+696: 3c010fb8
+(Unnamed Layer* 281) [Constant]_output: 3b214941
+(Unnamed Layer* 282) [Constant]_output: 3d2f1ae6
+697: 3e251bcb
+699: 3d5faec4
+701: 3da684ae
+hm: 3ebbddb0
+704: 3e9f2772
+hps: 3f3acb93
+707: 3d5de7f0
+rot: 3d50f6d3
+710: 3d4ec44d
+dim: 3d23e218
+713: 3d94888a
+prob: 3d083b2a

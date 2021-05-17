@@ -15,17 +15,17 @@ from utils import AverageMeter
 
 def main():
     parser = argparse.ArgumentParser()
-    #parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_gac_base_int8.trt',
-    #                             help='path to pretrained model')
-    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
-                                 help='path to pretrained model')
+    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_e2e_int8.trt',
+                                help='path to pretrained model')
+    # parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
+    #                              help='path to pretrained model')
     parser.add_argument('--data_dir', default='./kitti_format/data/kitti',
                                  help='path to dataset')
     parser.add_argument('--dcn_lib', default='/home/ml4u/GAC3D/trt_src/onnx-tensorrt/plugin/build/libDCN.so',
                                  help='path to DCN.so file')
     parser.add_argument('--demo', default='./kitti_format/data/kitti/val.txt',
                                  help='demo set')
-    parser.add_argument('--result_dir', default='./kitti_format/exp/results_test',
+    parser.add_argument('--result_dir', default='./kitti_format/exp/results_dla34_e2e_int8',
                                  help='result dir')
     parser.add_argument('--video', action='store_true',
                                  help='infer on sequence')
@@ -79,7 +79,11 @@ def main():
         p_img, calib, read_interval = inputs['p_img'], inputs['calib'], inputs['read']
         
         # NOTE run detection
-        dets, engine_interval, decode_interval = detector.run(p_img, calib)
+        if args.video:
+            dets, engine_interval, decode_interval = detector.run(p_img, calib)
+        else:
+            img = inputs['img']
+            dets, engine_interval, decode_interval = detector.run(img, calib)
         end_time = time.time()
 
         time_dict = {
