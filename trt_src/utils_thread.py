@@ -105,11 +105,6 @@ class DisplayThread(threading.Thread):
         # score_3d = det[12]
         conditions = np.concatenate((dets[:, 5:8] > 0, dets[:, [4]] > 0.3), axis=1)
         valid = np.bitwise_and.reduce(conditions, axis=1)
-        # valid1 = np.bitwise_and.reduce((dets[:, 5:8] > 0), axis=1)
-        # valid2 = np.bitwise_and.reduce((dets[:, [4,12]] > 0.3), axis=1)
-        # invalid2 = (dets[:, 2] >= 55 | dets[:, 2] <= 0)
-        # invalid3 = (dets[:, [4,12]] < 0.3)
-        # invalid = invalid1 | invalid2 | invalid3
         processed_dets = dets[valid]
         return processed_dets
 
@@ -123,8 +118,8 @@ class DisplayThread(threading.Thread):
             calib = inputs['calib']
             
             # NOTE post process
-            processed_dets = dets
-            # processed_dets = self.postprocess(dets)
+            # processed_dets = dets
+            processed_dets = self.postprocess(dets)
             end_time = time.time()
             # print('\nPost time: {:.4f}'.format(end_time - start_time))
 

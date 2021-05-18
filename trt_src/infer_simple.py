@@ -15,7 +15,7 @@ from utils import AverageMeter
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_gac_base_200_fp32.trt',
+    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_e2e_int8.trt',
                                  help='path to pretrained model')
     #parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
     #                             help='path to pretrained model')

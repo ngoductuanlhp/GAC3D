@@ -15,7 +15,7 @@ from utils import AverageMeter
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_e2e_int8.trt',
+    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_gac_base_fp16.trt',
                                 help='path to pretrained model')
     # parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
     #                              help='path to pretrained model')
@@ -72,6 +72,7 @@ def main():
 
     idx = 0
     while not eventStop.is_set():
+        # jetson.log()
         start_time = time.time()
         
         # NOTE get input from io_thread
@@ -113,7 +114,7 @@ def main():
         bar.next()
         idx += 1
     
-    
+    # jetson.stop()
     print("\nFinish. Average time:")
     for t, meter in time_meter.items():
         print('\t{}: {:.4f} ms'.format(t, meter.avg))
