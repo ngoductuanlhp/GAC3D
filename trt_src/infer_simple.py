@@ -15,7 +15,7 @@ from utils import AverageMeter
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_e2e_int8.trt',
+    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_e2e_lite_int8.trt',
                                  help='path to pretrained model')
     #parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
     #                             help='path to pretrained model')
@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--save', action='store_true',
                                  help='save results to disk')                             
     args = parser.parse_args()
+    args.img_dim = (288, 1280)
 
     if os.path.exists(args.result_dir):
         shutil.rmtree(args.result_dir, True)

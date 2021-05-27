@@ -10,7 +10,7 @@ import time
 import torch
 import threading
 
-from engine import Engine
+from engine import TrtEngine, TorchEngine
 # from engine_thread import EngineThread
 
 from images import get_affine_transform
@@ -47,8 +47,14 @@ class JetsonDetector(object):
             [[-1, 0], [0, -1], [-1, 0], [0, -1], [-1, 0], [0, -1], [-1, 0], [0, -1], [-1, 0], [0, -1], [-1, 0], [0, -1],
             [-1, 0], [0, -1], [-1, 0], [0, -1], [-1, 0], [0, -1]])
         self.const = const.unsqueeze(0).unsqueeze(0).expand(self.batch, self.max_obj, -1,-1).to(self.device)
+        
+        self.img_height, self.img_width = args.img_dim
+        self.args = args
 
-        self.engine = Engine(args.load_model, args.dcn_lib)
+        if self.args.use_torch:
+            self.engine = TorchEngine(args)
+        else:
+            self.engine = TrtEngine(args.load_model, args.dcn_lib, img_dim=args.img_dim)
 
         self.meta = None
         self.trans_input = None
@@ -61,12 +67,12 @@ class JetsonDetector(object):
     def read_img_calib_video(self):
         img_0 = cv2.imread(self.img0_path)
         h, w = img_0.shape[:2]
-        c = np.array([w/2., h/2.], dtype=np.float32)
-        s = np.array([w, h], dtype=np.float32)
+        c = np.array([w/2.,  0.625 * h], dtype=np.float32)
+        s = np.array([w, int(0.75 * h)], dtype=np.float32)
         
-        trans_input = get_affine_transform(c, s, 0, [1280,384])
+        trans_input = get_affine_transform(c, s, 0, [self.img_width,self.img_height])
         
-        trans_output_inv = get_affine_transform(c, s, 0, [320, 96],inv=1)
+        trans_output_inv = get_affine_transform(c, s, 0, [self.img_width//4, self.img_height//4],inv=1)
         trans_output_inv = torch.from_numpy(trans_output_inv).to(self.device)
         
         calib_file = open(self.calib0_path, 'r')
@@ -79,8 +85,8 @@ class JetsonDetector(object):
         ground_plane = gen_ground(self.calib_np, h, w).to(self.device)
         calib = torch.from_numpy(self.calib_np).to(self.device)
         
-        meta = {'out_height': 384 // 4,
-                'out_width': 1280 // 4,
+        meta = {'out_height': self.img_height//4,
+                'out_width': self.img_width//4,
                 'trans_output_inv': trans_output_inv,
                 'c': c,
                 's': s,
@@ -91,7 +97,7 @@ class JetsonDetector(object):
 
     def run(self, img, calib):
         if self.video:
-            img = self.preprocess_simple(img)
+            # img = self.preprocess_simple(img)
             meta = self.meta
         else:
             img, meta = self.preprocess(img, calib)
@@ -100,7 +106,9 @@ class JetsonDetector(object):
             meta['ground_plane'] = meta['ground_plane'].to(self.device)
 
         start_time = time.time()
+
         hm, hps, rot, dim, prob = self.engine(img)
+        
         engine_time = time.time()
         dets = car_pose_decode(hm, hps, rot, dim, prob, K=self.max_obj, meta=meta, const=self.const)
         decode_time = time.time()
@@ -111,36 +119,36 @@ class JetsonDetector(object):
         decode_interval = decode_time - engine_time
         return dets, engine_interval, decode_interval
 
-    def preprocess_simple(self, img):
-        # img = cv2.warpAffine(img, self.trans_input, (1280,384), flags=cv2.INTER_LINEAR)
-        # img = img.astype(np.float32)
-        # img = np.transpose(img, [2, 0, 1])
-        # img = np.ascontiguousarray(img)
-        # img = np.ravel(img)
-        return img
+    # def preprocess_simple(self, img):
+    #     # img = cv2.warpAffine(img, self.trans_input, (1280,384), flags=cv2.INTER_LINEAR)
+    #     # img = img.astype(np.float32)
+    #     # img = np.transpose(img, [2, 0, 1])
+    #     # img = np.ascontiguousarray(img)
+    #     # img = np.ravel(img)
+    #     return img
 
     def preprocess(self, img, calib):
         h, w = img.shape[:2]
         c = np.array([w/2., h/2.], dtype=np.float32)
         s = np.array([w, h], dtype=np.float32)
         
-        trans_input = get_affine_transform(c, s, 0, [1280,384])
+        trans_input = get_affine_transform(c, s, 0, [self.img_width,self.img_height])
         
-        img = cv2.warpAffine(img, trans_input, (1280,384), flags=cv2.INTER_LINEAR)
+        img = cv2.warpAffine(img, trans_input, (self.img_width,self.img_height), flags=cv2.INTER_LINEAR)
 
         img = img.astype(np.float32)
         img = np.transpose(img, [2, 0, 1])
         img = np.ascontiguousarray(img)
         img = np.ravel(img)
         
-        trans_output_inv = get_affine_transform(c, s, 0, [320, 96],inv=1)
+        trans_output_inv = get_affine_transform(c, s, 0, [self.img_width//4, self.img_height//4],inv=1)
         trans_output_inv = torch.from_numpy(trans_output_inv)
         
         ground_plane = gen_ground(calib, h, w)
         calib = torch.from_numpy(calib)
         
-        meta = {'out_height': 384 // 4,
-                'out_width': 1280 // 4,
+        meta = {'out_height': self.img_height//4,
+                'out_width': self.img_width//4,
                 'trans_output_inv': trans_output_inv,
                 'c': c,
                 's': s,
@@ -158,8 +166,8 @@ class JetsonDetector(object):
         c = np.array([w/2., h/2.], dtype=np.float32)
         s = np.array([w, h], dtype=np.float32)
         
-        trans_input = get_affine_transform(c, s, 0, [1280,384])
-        img = cv2.warpAffine(img, trans_input, (1280,384), flags=cv2.INTER_LINEAR)
+        trans_input = get_affine_transform(c, s, 0, [self.img_width,self.img_height])
+        img = cv2.warpAffine(img, trans_input, (self.img_width,self.img_height), flags=cv2.INTER_LINEAR)
         img = img.astype(np.float32)
         img = np.transpose(img, [2, 0, 1])
         img = np.ascontiguousarray(img)
@@ -167,7 +175,7 @@ class JetsonDetector(object):
         return img, c, s, h, w
 
     def read_meta(self, img_name, c, s, h, w):
-        trans_output_inv = get_affine_transform(c, s, 0, [320, 96],inv=1)
+        trans_output_inv = get_affine_transform(c, s, 0, [self.img_width//4, self.img_height//4],inv=1)
         trans_output_inv = torch.from_numpy(trans_output_inv).to(self.device)
         trans_output_inv = trans_output_inv.unsqueeze(0).unsqueeze(1).expand(self.batch, self.max_obj, -1, -1).contiguous().view(-1, 2, 3).float()
 
@@ -202,8 +210,8 @@ class JetsonDetector(object):
         ground_plane = ground_plane.unsqueeze(0).unsqueeze(1).expand(self.batch, self.max_obj, -1).contiguous()
 
         calib = torch.from_numpy(calib).to(self.device).unsqueeze(0)
-        meta = {'out_height': 96,
-                'out_width': 320,
+        meta = {'out_height': self.img_height//4,
+                'out_width': self.img_width//4,
                 'trans_output_inv': trans_output_inv,
                 'c': c,
                 's': s,
@@ -221,14 +229,14 @@ class JetsonDetector(object):
         c = np.array([w/2., h/2.], dtype=np.float32)
         s = np.array([w, h], dtype=np.float32)
         
-        trans_input = get_affine_transform(c, s, 0, [1280,384])
-        img = cv2.warpAffine(img, trans_input, (1280,384), flags=cv2.INTER_LINEAR)
+        trans_input = get_affine_transform(c, s, 0, [self.img_width,self.img_height])
+        img = cv2.warpAffine(img, trans_input, (self.img_width,self.img_height), flags=cv2.INTER_LINEAR)
         img = img.astype(np.float32)
         img = np.transpose(img, [2, 0, 1])
         img = np.ascontiguousarray(img)
         img = np.ravel(img)
         
-        trans_output_inv = get_affine_transform(c, s, 0, [320, 96],inv=1)
+        trans_output_inv = get_affine_transform(c, s, 0, [self.img_width//4, self.img_height//4],inv=1)
         trans_output_inv = torch.from_numpy(trans_output_inv).to(self.device)
         trans_output_inv = trans_output_inv.unsqueeze(0).unsqueeze(1).expand(self.batch, self.max_obj, -1, -1).contiguous().view(-1, 2, 3).float()
 
@@ -244,8 +252,8 @@ class JetsonDetector(object):
         ground_plane = ground_plane.unsqueeze(0).unsqueeze(1).expand(self.batch, self.max_obj, -1).contiguous()
 
         calib = torch.from_numpy(calib).to(self.device).unsqueeze(0)
-        meta = {'out_height': 384 // 4,
-                'out_width': 1280 // 4,
+        meta = {'out_height': self.img_height//4,
+                'out_width': self.img_width//4,
                 'trans_output_inv': trans_output_inv,
                 'c': c,
                 's': s,

@@ -56,27 +56,20 @@ class CarPoseDetector(BaseDetector):
             quit()
         start_time = time.time()
         with torch.no_grad():
-            # if self.not_depth_guide or self.backbonea_arch == 'dla':
-            #     output = self.model(images)[-1]
-            # else:
-            #     output = self.model(images, depths)[-1]
-            # output = self.model(images)[-1]
-            output = self.model(images)
+            hm, hps, rot, dim, prob = self.model(images)
             torch.cuda.synchronize()
             engine_time = time.time()
 
-            output['hm'] = output['hm'].sigmoid_()
-            output['reg'] = None
-            output['wh'] = None
+            hm = hm.sigmoid_()
             dets = car_pose_decode(
-                output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],
-                reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const,
+                hm, hps, dim, rot, prob,
+                reg=None, wh=None, K=self.opt.K, meta=meta, const=self.const,
                 dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle, not_joint_task=self.opt.not_joint_task)
 
         if return_time:
-            return output, dets, engine_time - start_time
+            return None, dets, engine_time - start_time
         else:
-            return output, dets
+            return None, dets
 
     def preprocess_depth(self, depth):
         n = 40
@@ -88,8 +81,8 @@ class CarPoseDetector(BaseDetector):
 
     def pre_process(self, image, depth, meta=None):
         height, width = image.shape[0:2]
-        c = np.array([width / 2., height / 2.], dtype=np.float32)
-        s = np.array([width, height], dtype=np.float32)
+        c = np.array([width / 2., 0.625 * height ], dtype=np.float32)
+        s = np.array([width, int(0.75 *height)], dtype=np.float32)
 
         trans_input = get_affine_transform(
             c, s, 0, [self.opt.input_w, self.opt.input_h])
@@ -103,20 +96,7 @@ class CarPoseDetector(BaseDetector):
             1, 3, self.opt.input_h, self.opt.input_w)
         images = torch.from_numpy(images)
 
-        # FIXME test depth
-        # print(resized_depth.shape)
-        # dummy_depth = np.random.randint(0, 10000, size = (new_height, new_width)).astype(np.uint16)
-        # resized_depth = dummy_depth
-        # print(resized_depth)
-        # dummy_depth = np.ones_like(resized_depth) * 10 * 256
-        # s = resized_depth.shape
-        # resized_depth = np.random.randn(new_width, new_height, 1)
-        # resized_depth = dummy_depth
 
-        # resized_depth = np.arange(new_width * new_height).reshape(new_height,new_width)
-        # resized_depth = np.clip(resized_depth, 0, 255 * 100)
-        # print(resized_depth.shape)
-        # resized_depth = cv2.resize(depth, (new_width, new_height))
         inp_depth = cv2.warpAffine(
             depth, trans_input, (self.opt.input_w, self.opt.input_h),
             flags=cv2.INTER_LINEAR)

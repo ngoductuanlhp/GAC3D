@@ -235,5 +235,5 @@ def car_pose_decode(
     detections = torch.cat([bboxes, scores, dim, rot_y, position, prob, clses], dim=2)
     #   bboxes  scores  dim     rot_y   position    prob    classes
     #   0:4     4:5     5:8     8:9     9:12        12:13   13:14
-
+    torch.cuda.synchronize()
     return detections

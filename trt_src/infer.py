@@ -15,7 +15,7 @@ from utils import AverageMeter
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_gac_base_fp16.trt',
+    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_e2e_fp16.trt',
                                 help='path to pretrained model')
     # parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
     #                              help='path to pretrained model')
@@ -32,8 +32,14 @@ def main():
     parser.add_argument('--vis', action='store_true',
                                  help='visualize outputs')
     parser.add_argument('--save', action='store_true',
-                                 help='save results to disk')                             
+                                 help='save results to disk')   
+    parser.add_argument('--use_torch', action='store_true',
+                                 help='use Pytorch infer')
+    parser.add_argument('--arch', default='resjs_18',
+                                 help='model arch (only in Pytorch infer')                          
     args = parser.parse_args()
+
+    args.img_dim = (384, 1280)
 
     if os.path.exists(args.result_dir):
         shutil.rmtree(args.result_dir, True)
@@ -72,7 +78,6 @@ def main():
 
     idx = 0
     while not eventStop.is_set():
-        # jetson.log()
         start_time = time.time()
         
         # NOTE get input from io_thread
@@ -114,14 +119,16 @@ def main():
         bar.next()
         idx += 1
     
-    # jetson.stop()
     print("\nFinish. Average time:")
     for t, meter in time_meter.items():
         print('\t{}: {:.4f} ms'.format(t, meter.avg))
     bar.finish()
 
-    if args.vis:
-        displayThread.stop()
+    readIOThread.join()
+    displayThread.stop()
+    displayThread.join()
+    
+    
 
     # eng_time_arr = np.array(eng_time_arr)
     # decode_time_arr = np.array(decode_time_arr)

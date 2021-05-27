@@ -103,15 +103,22 @@ class DisplayThread(threading.Thread):
         # cat = int(det[13])
         # score_2d = det[4]
         # score_3d = det[12]
-        conditions = np.concatenate((dets[:, 5:8] > 0, dets[:, [4]] > 0.3), axis=1)
+        conditions = np.concatenate((dets[:, 5:8] > 0, dets[:, [5]] < 3, dets[:, [6]] < 5, dets[:, [7]] < 8,
+                                    dets[:, [4]] > 0.3, 
+                                    dets[:, [11]] >= 0, dets[:, [11]] <= 55), axis=1)
         valid = np.bitwise_and.reduce(conditions, axis=1)
         processed_dets = dets[valid]
         return processed_dets
 
     def run(self):
         # time_fps = time.time()
+        time_out = 20
         while self.running:
-            inputs = self.queue.get(block=True)
+            try:
+                inputs = self.queue.get(block=True, timeout=time_out)
+            except Exception as e:
+                pass
+            time_out = 1
             # fps = int(1 / (time.time() - time_fps))
             start_time = time.time()
             dets = inputs['dets']
@@ -174,6 +181,12 @@ class DisplayThread(threading.Thread):
 
     def draw_projected_box3d(self, image, qs, color=(255, 255, 255), thickness=1, front=False):
         qs = qs.astype(np.int32)
+
+        max_box = np.max(qs, axis = 0)
+        min_box = np.min(qs, axis = 0)
+        if (max_box[0] - min_box[0] > 500) or (min_box[0] - min_box[0] > 200):
+            return
+
         for k in range(0, 4):
             i, j = k, (k + 1) % 4
             cv2.line(image, (qs[i, 0], qs[i, 1]), (qs[j, 0], qs[j, 1]), color, thickness, cv2.LINE_AA)
@@ -214,6 +227,10 @@ class ReadIOThread(threading.Thread):
         self.trans_input = trans_input
 
         self.args = args
+        self.img_height, self.img_width = args.img_dim
+
+        self.mean = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(1, 1, 3)
+        self.std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(1, 1, 3)
 
 
     def run(self):
@@ -230,7 +247,6 @@ class ReadIOThread(threading.Thread):
             self.queue.put(outputs, block=True)
 
         self.eventStop.set()
-        # self.join()
 
     def read_io(self, img_name):
         # NOTE Read image
@@ -239,7 +255,10 @@ class ReadIOThread(threading.Thread):
 
         processed_img = None
         if self.video:
-            processed_img = self.preprocess_img(img)
+            if self.args.use_torch:
+                processed_img = self.preprocess_img_torch(img)
+            else:
+                processed_img = self.preprocess_img(img)
         
         # NOTE Read calib
         if self.video:
@@ -260,11 +279,23 @@ class ReadIOThread(threading.Thread):
     def preprocess_img(self, img, trans_input=None):
         if trans_input is None:
             trans_input = self.trans_input
-        img = cv2.warpAffine(img, trans_input, (1280,384), flags=cv2.INTER_LINEAR)
+        img = cv2.warpAffine(img, trans_input, (self.img_width,self.img_height), flags=cv2.INTER_LINEAR)
         img = img.astype(np.float32)
         img = np.transpose(img, [2, 0, 1])
         img = np.ascontiguousarray(img)
         img = np.ravel(img)
+        return img
+
+    def preprocess_img_torch(self, img, trans_input=None):
+        if trans_input is None:
+            trans_input = self.trans_input
+        img = cv2.warpAffine(img, trans_input, (self.img_width,self.img_height), flags=cv2.INTER_LINEAR)
+        
+        img = (img / 255).astype(np.float32)
+        img = (img - self.mean) / self.std
+
+        img = img.transpose(2, 0, 1).reshape(
+            1, 3, self.img_height, self.img_width)
         return img
 
     # def preprocess_img_calib(self, img, calib):

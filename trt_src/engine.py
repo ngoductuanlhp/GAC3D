@@ -10,7 +10,7 @@ from pycuda.driver import PointerHolderBase
 import torch
 import ctypes
 from ctypes import RTLD_GLOBAL
-
+from models.model import load_model, create_model
 
 class Holder(PointerHolderBase):
 
@@ -140,7 +140,7 @@ def gpuarray_to_tensor(gpuarray):
     return out
 
 
-class Engine(object):
+class TrtEngine(object):
     def _load_plugins(self, dcn_lib):
         # NOTE load DCNv2 plugin
         ctypes.CDLL(dcn_lib, RTLD_GLOBAL)
@@ -176,12 +176,11 @@ class Engine(object):
                 bindings.append(int(device_mem.gpudata))
         return outputs, bindings
 
-    def __init__(self, load_model, dcn_lib, batch=1):
+    def __init__(self, load_model, dcn_lib, batch=1, img_dim = (384, 1280)):
         t1 = time.time()
-        self.threshold = 0.4
         self.batch_size = batch
-        self.img_h_new, self.img_w_new = 384, 1280
-        self.striped_h, self.striped_w =  int(self.img_h_new / 4), int(self.img_w_new / 4)
+        self.img_height, self.img_width = img_dim
+        self.striped_h, self.striped_w =  int(self.img_height / 4), int(self.img_width / 4)
 
         self.shape_of_output = [(batch, 3, self.striped_h, self.striped_w), # hps
                                 (batch, 20, self.striped_h, self.striped_w), # rot
@@ -192,12 +191,12 @@ class Engine(object):
 
         self.trt_logger = trt.Logger(trt.Logger.INFO)
 
-        mean = np.ones((384,1280, 3), dtype=np.float32) * np.array([0.485 * 255, 0.456 * 255, 0.406 * 255], dtype=np.float32).reshape(1, 1, 3)
+        mean = np.ones((self.img_height,self.img_width, 3), dtype=np.float32) * np.array([0.485 * 255, 0.456 * 255, 0.406 * 255], dtype=np.float32).reshape(1, 1, 3)
         mean = np.transpose(mean, [2, 0, 1])
         mean = np.ascontiguousarray(mean).ravel()
         self.mean_gpu = gpuarray.to_gpu(mean)
 
-        std = np.ones((384,1280, 3), dtype=np.float32) * np.array([0.229 * 255, 0.224 * 255, 0.225 * 255], dtype=np.float32).reshape(1, 1, 3)
+        std = np.ones((self.img_height,self.img_width, 3), dtype=np.float32) * np.array([0.229 * 255, 0.224 * 255, 0.225 * 255], dtype=np.float32).reshape(1, 1, 3)
         std = np.transpose(std, [2, 0, 1])
         std = np.ascontiguousarray(std).ravel()
         self.std_gpu = gpuarray.to_gpu(std).astype(np.float32)
@@ -208,28 +207,26 @@ class Engine(object):
         self.dim = torch.zeros((batch * 3 * self.striped_h * self.striped_w), dtype=torch.float32).cuda()
         self.prob = torch.zeros((batch * 1 * self.striped_h * self.striped_w), dtype=torch.float32).cuda()
         self.hm = torch.zeros((batch * 3 * self.striped_h * self.striped_w), dtype=torch.float32).cuda()
-        # self.features = torch.zeros((batch * 32 * self.striped_h * self.striped_w), dtype=torch.float32).cuda()
 
         # NOTE INPUT GPU MEM
-        self.img_gpu = gpuarray.empty(3*384*1280, dtype=np.float32)
+        self.img_gpu = gpuarray.empty(3*self.img_height*self.img_width, dtype=np.float32)
         # NOTE INPUT HOST MEM
-        self.host_mem = cuda.pagelocked_empty((3,384,1280), dtype=np.float32)
+        self.host_mem = cuda.pagelocked_empty((3,self.img_height,self.img_width), dtype=np.float32)
 
         # NOTE OUT GPU TENSOR
         self.out_ptrs = [self.hm, self.hps, self.rot, self.dim, self.prob]
-        # self.out_ptrs = [self.hm, self.features]
+
         try:
             self._load_plugins(dcn_lib)
             self.engine = self._load_engine(load_model)
             self.context = self.engine.create_execution_context()
             self.stream = cuda.Stream()
             self.outputs, self.bindings = self._allocate_buffers()
-            print("[RTM3D_Engine] Model loaded in {:.3}s".format(time.time() - t1))
+            print("[GAC3D_Engine] Model loaded in {:.3}s".format(time.time() - t1))
         except Exception as e:
             raise RuntimeError('Build engine failed:', e) from e
 
     def __call__(self, img):
-
         # NOTE preprocess img
         self.host_mem = img
         self.img_gpu.set_async(self.host_mem, stream=self.stream)
@@ -243,8 +240,29 @@ class Engine(object):
             bindings=self.bindings,
             stream_handle=self.stream.handle)
 
-
         self.stream.synchronize()
-        
         hm, hps, rot, dim, prob  = [output.reshape(shape) for output, shape in zip(self.out_ptrs, self.shape_of_output)]
+
+        return hm, hps, rot, dim, prob
+
+class TorchEngine:
+    def __init__(self, args):
+        self.args = args
+        self.device = torch.device('cuda')
+
+        heads = {'hm': 3, 'hps': 20, 'rot': 8, 'dim': 3, 'prob': 1}
+        head_conv = 256 if 'dla' in self.args.arch else 64
+        model = create_model(self.args.arch, heads, head_conv)
+        model = load_model(model, args.load_model)
+        self.model = model.to(self.device)
+        self.model.eval()
+
+        
+
+    def __call__(self, img):
+        with torch.no_grad():
+            img = torch.from_numpy(img).to(self.device)
+            hm, hps, rot, dim, prob = self.model(img)
+            torch.cuda.synchronize()
+
         return hm, hps, rot, dim, prob

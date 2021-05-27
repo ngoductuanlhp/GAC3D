@@ -319,8 +319,11 @@ class Opts(object):
         # input_h(w): opt.input_h overrides opt.input_res overrides dataset default
         input_h = opt.input_res if opt.input_res > 0 else input_h
         input_w = opt.input_res if opt.input_res > 0 else input_w
-        opt.input_h = opt.input_h if opt.input_h > 0 else input_h
-        opt.input_w = opt.input_w if opt.input_w > 0 else input_w
+        # opt.input_h = opt.input_h if opt.input_h > 0 else input_h
+        # opt.input_w = opt.input_w if opt.input_w > 0 else input_w
+
+        opt.input_h = 288
+        opt.input_w = 1280
         opt.output_h = opt.input_h // opt.down_ratio
         opt.output_w = opt.input_w // opt.down_ratio
         opt.input_res = max(opt.input_h, opt.input_w)

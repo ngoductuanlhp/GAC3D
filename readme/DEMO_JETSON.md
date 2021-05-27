@@ -42,11 +42,23 @@
     ```
 
 8. Infer using TensorRT:
-    Normal
+    Normal:
     ```bash
     python3 ./trt_src/infer.py
     ```
     Video:
     ```bash
-    python3 ./trt_src/infer.py --video --demo 2011_09_26_drive_0009_sync
+    python3 ./trt_src/infer.py --video --demo 2011_09_26_0009
     ```
+
+9. Infer using Pytorch:
+    ```bash
+    python3 ./trt_src/infer.py --video --demo 2011_09_26_0009 --use_torch
+    ```
+
+9. Infer with visualization:
+    ```bash
+    python3 ./trt_src/infer.py --video --demo 2011_09_26_0009 --vis
+    ```
+
+
