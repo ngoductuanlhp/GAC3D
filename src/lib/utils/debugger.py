@@ -281,6 +281,7 @@ class Debugger(object):
         box = results[:4]
 
         score = results[4]*(1/(1+math.exp(-results[39])))
+        score_3d = 1/(1+math.exp(-results[39]))
 
         dim = results[32:35]
         pos = results[36:39]
@@ -291,9 +292,9 @@ class Debugger(object):
         if dim[0] <= 0 or dim[1] <= 0 or dim[2] <= 0 or pos[2] >= 55 or pos[2] <= 0:
             return
         self.write_detection_results(
-            det_cats[int(cat)], result_dir, file_number, box, dim, pos, ori, score)
+            det_cats[int(cat)], result_dir, file_number, box, dim, pos, ori, score, score_3d)
 
-    def write_detection_results(self, cls, result_dir, file_number, box, dim, pos, ori, score):
+    def write_detection_results(self, cls, result_dir, file_number, box, dim, pos, ori, score, score_3d):
         '''One by one write detection results to KITTI format label files.
         '''
         if result_dir is None:
@@ -326,8 +327,8 @@ class Debugger(object):
         output_str += '%.2f %.d ' % (-1, -1)
         output_str += '%.7f %.7f %.7f %.7f %.7f ' % (
             alpha, box[0], box[1], box[2], box[3])
-        output_str += '%.7f %.7f %.7f %.7f %.7f %.7f %.7f %.7f \n' % (h, w, l, Px, Py,
-                                                                      Pz, ori, score)
+        output_str += '%.7f %.7f %.7f %.7f %.7f %.7f %.7f %.7f %.7f\n' % (h, w, l, Px, Py,
+                                                                      Pz, ori, score, score_3d)
         # output_str += '%.2f %.2f %.2f %.2f %.2f ' % (alpha, box[0], box[1], box[2], box[3])
         # output_str += '%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n' % (h, w, l, Px, Py, \
         #                                                               Pz, ori, score)

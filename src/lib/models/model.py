@@ -16,6 +16,8 @@ from .networks.dla_dcn_pac_noconv import get_pose_net as get_dlapac_noconv
 from .networks.dla_dcn_pac_js import get_pose_net as get_dlapac_js
 from .networks.resnet_pac_js import get_pose_net as get_resnet_js
 
+from .networks.dla_dcn_pac_e2e import get_pose_net as get_dlapac_e2e
+
 
 
 _model_factory = {
@@ -26,6 +28,7 @@ _model_factory = {
   'dlapacnc': get_dlapac_noconv,
   'dlajs': get_dlapac_js,
   'resjs': get_resnet_js,
+  'dlae2e': get_dlapac_e2e,
 }
 
 def create_model(arch, heads, head_conv):

@@ -24,8 +24,8 @@ from utils.debugger import Debugger
 from .base_detector import BaseDetector
 
 from torch.onnx import OperatorExportTypes
-import onnxruntime
-import onnx
+# import onnxruntime
+# import onnx
 
 
 class CarPoseDetector(BaseDetector):
@@ -54,22 +54,31 @@ class CarPoseDetector(BaseDetector):
             quit()
 
         with torch.no_grad():
-            if self.not_depth_guide or self.backbonea_arch == 'dla':
-                output = self.model(images)[-1]
-            else:
-                output = self.model(images, depths)[-1]
+            # if self.not_depth_guide or self.backbonea_arch == 'dla':
+            #     output = self.model(images)[-1]
+            # else:
+            #     output = self.model(images, depths)[-1]
             # output = self.model(images)[-1]
-            output['hm'] = output['hm'].sigmoid_()
+            # output = self.model(images)[-1]
+            outputs = self.model(images)
+            # hm, hps, rot, dim, prob = self.model(images)
+            hm, hps, rot, dim, prob = outputs['hm'], outputs['hps'], outputs['rot'], outputs['dim'], outputs['prob']
+            hm = hm.sigmoid_()
 
             dets = car_pose_decode(
-                output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],
-                reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const,
+                hm, hps, dim, rot, prob,
+                reg=outputs['reg'], wh=outputs['wh'], K=self.opt.K, meta=meta, const=self.const,
                 dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle, not_joint_task=self.opt.not_joint_task)
 
+            # dets = car_pose_decode(
+            #     output['hm'], output['hps'], output['dim'], output['rot'], output['prob'],
+            #     reg=output['reg'], wh=output['wh'], K=self.opt.K, meta=meta, const=self.const,
+            #     dynamic_dim=self.opt.dynamic_dim, axis_head_angle=self.opt.axis_head_angle, not_joint_task=self.opt.not_joint_task)
+
         if return_time:
-            return output, dets, 0
+            return None, dets, 0
         else:
-            return output, dets
+            return None, dets
 
     def preprocess_depth(self, depth):
         n = 40
