@@ -13,15 +13,20 @@ from utils_thread import ReadIOThread, DisplayThread
 from utils_thread import save_kitti_format
 from utils import AverageMeter
 
+HOME_DIR = '/home/tuan/'
+# HOME_DIR = '/home/ml4u/'
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_e2e_lite_int8.trt',
-                                 help='path to pretrained model')
+    parser.add_argument('--load_model', default=HOME_DIR+'GAC3D/kitti_format/pretrained/dla_e2e_fake.trt',
+                                help='path to pretrained model')
+    # parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/res18_e2e_lite_int8.trt',
+    #                              help='path to pretrained model')
     #parser.add_argument('--load_model', default='/home/ml4u/RTM3D_weights/dla34_last.trt',
     #                             help='path to pretrained model')
     parser.add_argument('--data_dir', default='./kitti_format/data/kitti',
                                  help='path to dataset')
-    parser.add_argument('--dcn_lib', default='/home/ml4u/GAC3D/trt_src/onnx-tensorrt/plugin/build/libDCN.so',
+    parser.add_argument('--dcn_lib', default=HOME_DIR+'GAC3D/trt_src/onnx-tensorrt/plugin/build/libDCN.so',
                                  help='path to DCN.so file')
     parser.add_argument('--demo', default='./kitti_format/data/kitti/val.txt',
                                  help='demo set')
@@ -32,7 +37,11 @@ def main():
     parser.add_argument('--vis', action='store_true',
                                  help='visualize outputs')
     parser.add_argument('--save', action='store_true',
-                                 help='save results to disk')                             
+                                 help='save results to disk')
+    parser.add_argument('--use_torch', action='store_true',
+                                 help='use Pytorch infer')
+    parser.add_argument('--arch', default='resjs_18',
+                                 help='model arch (only in Pytorch infer')                              
     args = parser.parse_args()
     args.img_dim = (288, 1280)
 
@@ -99,6 +108,8 @@ def main():
         #     outputs['file'] = inputs['file']
         # display_queue.put(outputs, block=True)
 
+        displayThread.display(processed_dets, img, calib)
+
         if idx < 40:
             Bar.suffix = 'Skip first 40 iterations.'
         else:
@@ -109,6 +120,7 @@ def main():
         bar.next()
         idx += 1
     
+    displayThread.out_video.release()
     
     print("\nFinish. Average time:")
     for t, meter in time_meter.items():

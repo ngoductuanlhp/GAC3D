@@ -8,7 +8,7 @@ import torch.nn as nn
 import numpy as np
 import cv2
 
-from jtop import jtop, JtopException
+# from jtop import jtop, JtopException
 import csv
 
 class AverageMeter(object):
@@ -34,49 +34,49 @@ class AverageMeter(object):
           self.avg = self.sum / (self.count)
 
 
-LOG_ITEM = ['CPU1','CPU2','CPU3','CPU4','CPU5','CPU6', 'GPU', 'RAM','Temp thermal','power cur']
-class JetsonMeter(object):
-    def __init__(self):
-        self.jetson = jtop()
-        self.writer = None
-        self.csvfile = open('log.csv', 'w')
-        self.init_stat = {}
-        for item in LOG_ITEM:
-            self.init_stat[item] = 0
+# LOG_ITEM = ['CPU1','CPU2','CPU3','CPU4','CPU5','CPU6', 'GPU', 'RAM','Temp thermal','power cur']
+# class JetsonMeter(object):
+#     def __init__(self):
+#         self.jetson = jtop()
+#         self.writer = None
+#         self.csvfile = open('log.csv', 'w')
+#         self.init_stat = {}
+#         for item in LOG_ITEM:
+#             self.init_stat[item] = 0
 
 
-    def start(self):
-        self.jetson.start()
-        stats = self.jetson.stats
-        self.writer = csv.DictWriter(self.csvfile, fieldnames=LOG_ITEM)
-        # Write header
-        self.writer.writeheader()
+#     def start(self):
+#         self.jetson.start()
+#         stats = self.jetson.stats
+#         self.writer = csv.DictWriter(self.csvfile, fieldnames=LOG_ITEM)
+#         # Write header
+#         self.writer.writeheader()
 
-    def stop(self):
-        self.jetson.stop()
+#     def stop(self):
+#         self.jetson.stop()
 
-    def init_log(self):
+#     def init_log(self):
 
-        init = 10
-        while self.jetson.ok() and init > 0:
-            init -= 1
-            stats = self.jetson.stats
-            stats['RAM'] /= 8000000
-            for item in LOG_ITEM:
-                self.init_stat[item] += stats[item]
-        for item in LOG_ITEM:
-            self.init_stat[item] /= 10.0
+#         init = 10
+#         while self.jetson.ok() and init > 0:
+#             init -= 1
+#             stats = self.jetson.stats
+#             stats['RAM'] /= 8000000
+#             for item in LOG_ITEM:
+#                 self.init_stat[item] += stats[item]
+#         for item in LOG_ITEM:
+#             self.init_stat[item] /= 10.0
 
-    def log(self):
-        # if self.jetson.ok():
-        stats = self.jetson.stats
-        stats['RAM'] /= 8000000
+#     def log(self):
+#         # if self.jetson.ok():
+#         stats = self.jetson.stats
+#         stats['RAM'] /= 8000000
 
-        stats_log = {}
-        for item in LOG_ITEM:
-            stats_log[item] = stats[item]
+#         stats_log = {}
+#         for item in LOG_ITEM:
+#             stats_log[item] = stats[item]
 
-        self.writer.writerow(stats_log)
+#         self.writer.writerow(stats_log)
         
 
 def compute_box_3d(dim, location, rotation_y):

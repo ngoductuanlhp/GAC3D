@@ -26,8 +26,8 @@ from models.model import save_model
 from .base_detector import BaseDetector
 
 from torch.onnx import OperatorExportTypes
-import onnxruntime
-import onnx
+# import onnxruntime
+# import onnx
 
 
 class CarPoseDetector(BaseDetector):

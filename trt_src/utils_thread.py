@@ -92,8 +92,8 @@ class DisplayThread(threading.Thread):
         self.scale = scale
         self.args = args
 
-        # fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        # self.out_video = cv2.VideoWriter('dla34_test1.avi', fourcc, 10.0, (1280,340))
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        self.out_video = cv2.VideoWriter('dla34_test1.avi', fourcc, 10.0, (1280,384))
 
     def postprocess(self, dets):
         # dets n x 13
@@ -109,6 +109,45 @@ class DisplayThread(threading.Thread):
         valid = np.bitwise_and.reduce(conditions, axis=1)
         processed_dets = dets[valid]
         return processed_dets
+
+
+    def display(self, processed_dets, img, calib):
+        self.img = img
+        for det in processed_dets:
+            dim = det[5:8]
+            pos = det[9:12]
+            ori = det[8]
+            cat = int(det[13])
+            score_2d = det[4]
+            score_3d = det[12]
+            
+            # if filter_det(cat, dim, pos, score_2d, score_3d):
+            #     continue
+                
+            pos[1] = pos[1] + dim[0] / 2
+            color = self.color_list[cat]
+            box_3d = compute_box_3d(dim, pos, ori)
+            box_2d = project_to_image(box_3d, calib)
+            if self.scale > 1:
+                box_2d = box_2d // self.scale
+            self.draw_projected_box3d(self.img, box_2d, color, front=True)
+            
+            
+            # l = dim[2]
+            # h = dim[0]
+            # w = dim[1]
+            # vis_utils.vis_box_in_bev(self.im_bev, pos, [l,h,w], ori,
+            #                         score=det[12],
+            #                         width=self.img.shape[0] * 2, gt='g')
+        
+        # cv2.putText(self.img, 'FPS: {}'.format(fps), (40, 40), FONT, 0.8, (0,0,255), 2, cv2.LINE_AA)
+        # cv2.imshow("2D image", self.img)
+        self.img = cv2.resize(self.img, (1280,384))
+        self.out_video.write(self.img)
+    
+    # cv2.imshow("BEV", self.im_bev)
+        k = cv2.waitKey(70)
+
 
     def run(self):
         # time_fps = time.time()
@@ -171,13 +210,18 @@ class DisplayThread(threading.Thread):
                     #                         width=self.img.shape[0] * 2, gt='g')
                 
                 # cv2.putText(self.img, 'FPS: {}'.format(fps), (40, 40), FONT, 0.8, (0,0,255), 2, cv2.LINE_AA)
+                self.img = cv2.resize(self.img, (1280,384))
                 cv2.imshow("2D image", self.img)
-            # img2 = cv2.resize(self.img, (1280,340))
-            # self.out_video.write(img2)
+                # cv2.imwrite('test.png', self.img)
+                # quit()
+                
+                self.out_video.write(self.img)
+            
             # cv2.imshow("BEV", self.im_bev)
-                k = cv2.waitKey(5)
+                k = cv2.waitKey(1)
                 if k == ord('q'):
                     self.running = False
+        self.out_video.release()
 
     def draw_projected_box3d(self, image, qs, color=(255, 255, 255), thickness=1, front=False):
         qs = qs.astype(np.int32)
