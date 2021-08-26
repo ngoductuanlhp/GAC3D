@@ -111,6 +111,7 @@ def main():
         outputs = {'dets': dets, 'calib': calib}
         if args.vis:
             outputs['img'] = inputs['img']
+            # outputs['pc_velo'] = inputs['pc_velo']
         if args.save:
             outputs['file'] = inputs['file']
         display_queue.put(outputs, block=True)
